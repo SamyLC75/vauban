@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type {User, Organization} from '../types';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -57,12 +58,21 @@ export class AuthService {
     return sessionStorage.getItem(this.TOKEN_KEY);
   }
 
-  static getUser() {
-    const userStr = sessionStorage.getItem(this.USER_KEY);
-    return userStr ? JSON.parse(userStr) : null;
+  static getUser(): User | null {
+    const raw = sessionStorage.getItem(this.USER_KEY);
+    if (!raw) return null;
+
+    try {
+      // on "force" le JSON dans le type User
+      return JSON.parse(raw) as User;
+    } catch (e) {
+      console.warn('Utilisateur en storage invalide, purge.', e);
+      sessionStorage.removeItem(this.USER_KEY);
+      return null;
+    }
   }
 
   static isAuthenticated(): boolean {
-    return !!this.getToken();
+    return !!this.getUser();                 // true seulement si getUser() != null
   }
 }
