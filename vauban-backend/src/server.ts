@@ -59,6 +59,27 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
+app.post('/api/auth/login', (req, res) => {
+  console.log('Login attempt:', req.body); // Pour debug
+  const { orgCode, pseudonym } = req.body;
+  
+  res.json({
+    success: true,
+    token: 'fake-token-' + Date.now(),
+    user: {
+      id: '1',
+      pseudonym: pseudonym,
+      frenchCode: 'Napoleon',
+      role: 'member'
+    },
+    organization: {
+      id: '123',
+      name: 'Demo Org',
+      code: orgCode
+    }
+  });
+});
+
 httpServer.listen(PORT, () => {
   console.log(`
 ╔══════════════════════════════════════╗

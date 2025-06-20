@@ -20,10 +20,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (orgCode: string, pseudonym: string) => {
     try {
+      console.log('Tentative de connexion...', { orgCode, pseudonym });
       const response = await AuthService.login(orgCode, pseudonym);
+      console.log('Réponse reçue:', response);
       setUser(response.user);
       setOrganization(response.organization);
     } catch (error) {
+      console.error('Erreur login:', error);
       throw error;
     }
   };

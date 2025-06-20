@@ -15,6 +15,8 @@ interface LoginResponse {
     id: string;
     name: string;
     code: string;
+    sector : string;
+    size : number;
   };
 }
 

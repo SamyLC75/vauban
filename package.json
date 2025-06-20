@@ -1,0 +1,8 @@
+{
+    "name": "strategie-vauban-monorepo",
+    "scripts": {
+      "dev:frontend": "cd vauban && npm start",
+      "dev:backend": "cd vauban-backend && npm run dev",
+      "install:all": "cd vauban && npm install && cd ../vauban-backend && npm install"
+    }
+  }
