@@ -1,5 +1,5 @@
 import CryptoJS from "crypto-js";
-import { SensitivitySettings, DEFAULT_SENSITIVITY, SensibleField } from "../types/SensitivitySettings";
+import { SensitivitySettings, DEFAULT_SENSITIVITY, SensibleField } from "../../types/SensitivitySettings";
 
 const getSettings = (): SensitivitySettings => {
   return JSON.parse(localStorage.getItem("sensitivity_settings") || "null") || DEFAULT_SENSITIVITY;

@@ -4,7 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { LoginPage } from './pages/LoginPage';
 import { Dashboard } from './pages/Dashboard';
 import { AlertsPage } from './pages/AlertsPage';
-import { TeamPage } from './pages/TeamPage';
+import { TeamPage } from './pages/EquipePage';
 import { PrivateRoute } from './components/auth/PrivateRoute';
 import './App.css';
 

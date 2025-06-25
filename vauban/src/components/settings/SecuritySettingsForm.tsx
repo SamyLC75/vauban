@@ -1,9 +1,7 @@
 import React, { useState } from "react";
-import {
-  SensibilitySettings,
-  DEFAULT_SENSITIVITY,
-  SensibleField,
-} from "../types/SensitivitySettings";
+import { SensitivitySettings, DEFAULT_SENSITIVITY, SensibleField } from "../../types/sensitivity";
+import { setSensitivity, getSensitivity } from "../../utils/sensitivity";
+import Badge from "../ui/Badge";
 
 const FIELDS: { label: string; field: SensibleField; forced: boolean }[] = [
   { label: "Nom utilisateur", field: "nomUtilisateur", forced: true },
@@ -17,11 +15,8 @@ const FIELDS: { label: string; field: SensibleField; forced: boolean }[] = [
   { label: "Sous-secteur", field: "sousSecteur", forced: false },
 ];
 
-export const SecuritySettingsForm = () => {
-  const [settings, setSettings] = useState<SensibilitySettings>(() => {
-    const local = localStorage.getItem("sensitivity_settings");
-    return local ? JSON.parse(local) : DEFAULT_SENSITIVITY;
-  });
+export default function SecuritySettingsForm() {
+  const [settings, setSettings] = useState<SensitivitySettings>(() => getSensitivity());
 
   const onChange = (f: SensibleField) => (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!FIELDS.find(x => x.field === f)?.forced) {
@@ -30,28 +25,31 @@ export const SecuritySettingsForm = () => {
   };
 
   const onSave = () => {
-    localStorage.setItem("sensitivity_settings", JSON.stringify(settings));
+    setSensitivity(settings);
     alert("Paramètres enregistrés !");
   };
 
   return (
     <form>
+      <h2 className="text-xl font-bold mb-4">Champs confidentiels à chiffrer</h2>
       {FIELDS.map(({ label, field, forced }) => (
-        <div key={field}>
-          <label>
-            <input
-              type="checkbox"
-              checked={settings[field]}
-              disabled={forced}
-              onChange={onChange(field)}
-            />
-            {label} {forced && <span>(Toujours chiffré)</span>}
-          </label>
+        <div key={field} className="flex items-center mb-2">
+          <input
+            type="checkbox"
+            checked={settings[field]}
+            disabled={forced}
+            onChange={onChange(field)}
+            className="mr-2"
+          />
+          <span>{label}</span>
+          {forced && (
+            <Badge color="blue" >Toujours chiffré</Badge>
+          )}
         </div>
       ))}
-      <button type="button" onClick={onSave}>Enregistrer</button>
+      <button type="button" className="btn mt-4" onClick={onSave}>
+        Enregistrer les paramètres
+      </button>
     </form>
   );
-};
-
-export default SecuritySettingsForm;
+}

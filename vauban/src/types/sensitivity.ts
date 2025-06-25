@@ -13,7 +13,6 @@ export type SensitivitySettings = {
   [K in SensibleField]: boolean;
 };
 
-// Valeurs par défaut :
 export const DEFAULT_SENSITIVITY: SensitivitySettings = {
   nomUtilisateur: true,
   emailUtilisateur: true,
@@ -25,3 +24,4 @@ export const DEFAULT_SENSITIVITY: SensitivitySettings = {
   secteur: false,
   sousSecteur: false,
 };
+
