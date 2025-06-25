@@ -1,0 +1,19 @@
+{
+    "type": "incendie",
+    "actionsUrgentes": [
+      "Couper l'alimentation électrique",
+      "Déclencher l'alarme incendie",
+      "Évacuer le personnel vers le point de rassemblement",
+      "Appeler les pompiers (18)",
+      "Vérifier l'absence de personne dans les locaux"
+    ],
+    "pointsRassemblement": [
+      "Parking avant",
+      "Cour intérieure"
+    ],
+    "communications": [
+      "Alerter l'équipe de direction",
+      "Envoyer un message à tous les employés via Slack"
+    ]
+  }
+  

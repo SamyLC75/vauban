@@ -1,4 +1,5 @@
 import express from 'express';
+import crisisRoutes from './routes/crisis.routes';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
@@ -29,6 +30,8 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Routes crise
+app.use(crisisRoutes);
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/alerts', alertRoutes);
@@ -56,6 +59,7 @@ app.use((req, res) => {
 
 // Error handler
 app.use(errorHandler);
+export default app;
 
 const PORT = process.env.PORT || 5000;
 
