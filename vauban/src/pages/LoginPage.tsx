@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { login } from "../services/auth.service";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 // Marianne Theme Colors (bleu république + rouge)
 const bleu = "#000091";
@@ -16,6 +16,8 @@ export function LoginPage() {
   useEffect(() => {
     userRef.current?.focus();
   }, []);
+
+  const { login } = useAuth();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();

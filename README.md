@@ -237,3 +237,71 @@ Pour tout nouveau composant : commenter, typer, documenter.
 Projet ouvert, audité, chaque contribution doit renforcer la confidentialité et la pertinence métier pour les PME.
 
 Contact, suggestions, bugs, PR : bienvenue !
+
+
+## 🚧 Debug Auth – Bien configurer le middleware d’authentification
+
+
+🛡️ Protéger correctement les routes avec le middleware d’authentification
+Important
+Le middleware de vérification du token (authMiddleware) ne doit PAS intercepter la route de login ni les routes publiques (/api/login, /health, /api/testproxy).
+Sinon, même les connexions valides échouent avec un message “Token manquant” ou erreur 401.
+
+Exemple de configuration Express / TypeScript
+
+// ... middlewares globaux
+app.use(cors());
+app.use(express.json());
+
+// Définir les routes non protégées en premier
+app.post('/api/login', loginRoute);
+app.get('/health', healthRoute);
+app.get('/api/testproxy', testProxyRoute);
+// ... autres routes publiques
+
+// Protéger toutes les autres routes API
+app.use((req, res, next) => {
+  // Laisse passer les routes publiques
+  if (
+    req.path === '/api/login' ||
+    req.path === '/health' ||
+    req.path === '/api/testproxy'
+  ) {
+    return next();
+  }
+  // Middleware d'authentification pour le reste
+  return authMiddleware(req as AuthRequest, res, next);
+});
+
+// Routes protégées après le middleware d'auth
+app.use('/api', protectedApiRoutes);
+
+// Handler 404 et erreurs
+app.use((req, res) => res.status(404).json({ error: 'Route non trouvée' }));
+
+À retenir
+Toujours vérifier que le middleware d’auth n’empêche pas d’accéder à /api/login
+
+Protéger uniquement les routes réellement sensibles
+
+Toujours appliquer les middlewares dans l’ordre logique :
+
+CORS, parsers, routes publiques
+
+Auth middleware
+
+Routes protégées
+
+404
+
+Si erreur 401 "Token manquant" sur /api/login
+Vérifiez que le middleware d’auth n’est pas appliqué sur /api/login
+
+Testez /api/testproxy ou /health pour vérifier la santé de la stack
+
+Où placer ce bloc dans le README ?
+Section “Authentification” ou “Déploiement Backend”
+
+Juste après l’explication des routes publiques et protégées
+
+Ou crée une section “Pièges courants / Debug Auth” à la fin
