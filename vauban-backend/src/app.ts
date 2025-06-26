@@ -9,6 +9,10 @@ import entrepriseRoutes from "./routes/entreprise.routes";
 // ...autres imports
 
 const app = express();
+app.get('/api/testproxy', (req, res) => {
+  console.log('TESTPROXY backend atteint !');
+  res.json({ success: true });
+});
 app.use(express.json());
 // ...autres middlewares
 
@@ -33,5 +37,6 @@ app.get('/health', (req, res) => {
   
   // Error handler (si besoin)
   // app.use(errorHandler);
+  
   
   export default app;
