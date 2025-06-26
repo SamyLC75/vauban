@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { User, Organization } from '../types';
-import { AuthService } from '../services/auth.service';
+import * as AuthApi from '../services/auth.service'; // pour éviter collision des noms
 
 interface AuthContextType {
   user: User | null;
   organization: Organization | null;
-  login: (orgCode: string, pseudonym: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   isOfflineMode: boolean;
   toggleOfflineMode: () => void;
@@ -14,41 +14,40 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(AuthService.getUser());
+  const [user, setUser] = useState<User | null>(AuthApi.getUser());
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
 
-  const login = async (orgCode: string, pseudonym: string) => {
+  const doLogin = async (username: string, password: string) => {
     try {
-      console.log('Tentative de connexion...', { orgCode, pseudonym });
-      const response = await AuthService.login(orgCode, pseudonym);
-      console.log('Réponse reçue:', response);
-      setUser(response.user);
-      setOrganization(response.organization);
+      // Appelle la fonction login du service (attention aux noms identiques !)
+      const result = await AuthApi.login(username, password);
+      setUser(result); // result = user (car c'est le retour de login)
+      // Si tu veux aussi stocker organization, il faut l'extraire du retour d'API
+      // Ex : const { user, organization } = await AuthApi.login(...)
+      // Ici, tu dois ajuster selon le retour réel de ta fonction login
+      // setOrganization(result.organization ?? null);
     } catch (error) {
-      console.error('Erreur login:', error);
       throw error;
     }
   };
 
-  const logout = () => {
-    AuthService.logout();
+  const doLogout = () => {
+    AuthApi.logout();
     setUser(null);
     setOrganization(null);
   };
 
-  const toggleOfflineMode = () => {
-    setIsOfflineMode(!isOfflineMode);
-  };
+  const toggleOfflineMode = () => setIsOfflineMode(mode => !mode);
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      organization, 
-      login, 
-      logout, 
-      isOfflineMode, 
-      toggleOfflineMode 
+    <AuthContext.Provider value={{
+      user,
+      organization,
+      login: doLogin,
+      logout: doLogout,
+      isOfflineMode,
+      toggleOfflineMode
     }}>
       {children}
     </AuthContext.Provider>

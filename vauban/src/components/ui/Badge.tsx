@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function Badge({ children, color = "blue" }) {
+export default function Badge({ children, color = "blue" }: { children: string; color?: string }) {
   const bg = {
     blue: "bg-blue-200 text-blue-900",
     yellow: "bg-yellow-200 text-yellow-800",

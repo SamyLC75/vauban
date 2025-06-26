@@ -1,5 +1,5 @@
 import React from "react";
-export default function Stepper({ steps, current }) {
+export default function Stepper({ steps, current }: { steps: string[], current: number }) {
   return (
     <div className="flex mb-4">
       {steps.map((s, i) => (

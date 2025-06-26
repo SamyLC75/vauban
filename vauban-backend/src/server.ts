@@ -2,7 +2,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import app from './app';
-import { socketHandler } from './services/socket.service';
+import { socketHandler } from './services/socket.service';  
 
 dotenv.config();
 

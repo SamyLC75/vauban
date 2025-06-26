@@ -1,38 +1,39 @@
-import { Router } from 'express';
+import { Router } from "express";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import { getUsers } from "../utils/userStore";
+import { Request, Response } from "express";
 
+const JWT_SECRET = process.env.JWT_SECRET || "vauban_dev_secret";
 const router = Router();
 
-// Routes temporaires
-router.post('/login', (req, res) => {
-  const { orgCode, pseudonym } = req.body;
+router.post("/login", async (req: Request, res: Response) => {
+  const { username, password } = req.body;
+  const users = getUsers();
+  const user = users.find((u : any) => u.username === username);
+  if (!user) return res.status(401).json({ error: "Identifiant incorrect" });
 
-  if (orgCode === 'VAUBAN' && pseudonym === 'admin') {
-    return res.json({
-      success: true,
-      token: 'test-token-vauban',
-      user: {
-        id:           '123',        // <- user.id
-        pseudonym:    'admin',
-        frenchCode:   'VAUBAN',
-        orgId:        'org-123',    // <- user.orgId doit matcher organization.id
-        role:         'user'
-      },
-      organization: {
-        id:     'org-123',          // <- organization.id
-        name:   'Vauban Security',
-        code:   'VAUBAN',
-        sector: 'défense',
-        size:   42
-      }
-    });
-  }
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  if (!ok) return res.status(401).json({ error: "Mot de passe incorrect" });
 
-  return res
-    .status(401)
-    .json({ success: false, message: 'Identifiants invalides' });
+  // Ajoute gestion des quotas ici si besoin
+
+  const token = jwt.sign(
+    { id: user.id, username: user.username, role: user.role, maxUsage: user.maxUsage, currentUsage: user.currentUsage },
+    JWT_SECRET,
+    { expiresIn: "2h" }
+  );
+
+  res.json({
+    token,
+    user: {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      maxUsage: user.maxUsage,
+      currentUsage: user.currentUsage
+    }
+  });
 });
-
-
-
 
 export default router;

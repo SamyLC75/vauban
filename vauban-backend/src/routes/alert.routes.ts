@@ -1,14 +1,20 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { AlertController } from '../controllers/alert.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
-
+import { requireAuth } from '../middleware/auth';
+let alerts = [
+    { id: "a1", message: "Alerte test", time: new Date().toLocaleTimeString(), sender: "Napoléon" }
+  ];
 const router = Router();
 const alertController = new AlertController();
+router.use(requireAuth);
 
-router.use(authMiddleware);
+router.get('/',requireAuth, (req: Request, res: Response) => res.json(alerts.slice(-5).reverse()));
+router.post("/", requireAuth, (req: Request, res: Response) => {
+    const { message, sender } = req.body;
+    const alert = { id: Date.now().toString(), message, sender, time: new Date().toLocaleTimeString() };
+    alerts.push(alert);
+    res.status(201).json(alert);
+});
 
-router.get('/', (req, res) => alertController.getAlerts(req, res));
-router.post('/', (req, res) => alertController.createAlert(req, res));
-router.post('/:alertId/respond', (req, res) => alertController.respondToAlert(req, res));
 
 export default router;

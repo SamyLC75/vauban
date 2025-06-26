@@ -1,14 +1,24 @@
-import { Router } from 'express';
-import { AlertController } from '../controllers/alert.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { Router, Request, Response } from "express";
+import { requireAuth } from "../middleware/auth";
+
+let team = [
+  { id: "1", name: "Napoléon", role: "Directeur" },
+  { id: "2", name: "Clemenceau", role: "RH" }
+];
 
 const router = Router();
-const alertController = new AlertController();
 
-router.use(authMiddleware);
+// GET équipe
+router.get("/", requireAuth, (req: Request, res: Response) => {
+  res.json(team);
+});
 
-router.get('/', (req, res) => alertController.getAlerts(req, res));
-router.post('/', (req, res) => alertController.createAlert(req, res));
-router.post('/:alertId/respond', (req, res) => alertController.respondToAlert(req, res));
+// Ajout membre (optionnel pour ce soir)
+router.post("/", requireAuth, (req: Request, res: Response) => {
+  const { name, role } = req.body;
+  const newMember = { id: Date.now().toString(), name, role };
+  team.push(newMember);
+  res.status(201).json(newMember);
+});
 
 export default router;

@@ -1,5 +1,5 @@
 import React from "react";
-export default function RiskCard({ risk }) {
+export default function RiskCard({ risk }: { risk: any }) {
   const color = ["bg-green-100","bg-orange-100","bg-red-100"][risk.gravite-1] || "bg-gray-100";
   return (
     <div className={`p-3 rounded shadow mb-2 ${color}`}>

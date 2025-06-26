@@ -53,7 +53,7 @@ export const Dashboard = () => {
                   <Badge color={m.done ? "blue" : "yellow"}>
                     {m.done ? "Complété" : "À compléter"}
                   </Badge>
-                  <Button size="sm" onClick={() => navigate(m.to)}>
+                  <Button onClick={() => navigate(m.to)}>
                     Accéder
                   </Button>
                 </div>
