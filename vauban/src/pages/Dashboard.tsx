@@ -3,6 +3,8 @@ import { Button } from "../components/ui/Button";
 import { Header } from "../components/layout/Header";
 import Badge from "../components/ui/Badge";
 import { useNavigate } from "react-router-dom";
+import { Link } from 'react-router-dom';
+import { FileText } from 'lucide-react';
 
 export const Dashboard = () => {
   const navigate = useNavigate();
@@ -134,6 +136,13 @@ export const Dashboard = () => {
             <Button variant="primary" onClick={() => navigate("/actions")} fullWidth>
               ✅ Plan d’actions
             </Button>
+            <Link 
+              to="/duer" 
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 w-full"
+            >
+              <FileText className="w-5 h-5" />
+              Générer mon DUER
+            </Link>
           </div>
         </div>
       </main>

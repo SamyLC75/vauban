@@ -6,6 +6,7 @@ import { Dashboard } from './pages/Dashboard';
 import { AlertsPage } from './pages/AlertsPage';
 import { TeamPage } from './pages/EquipePage';
 import { PrivateRoute } from './components/auth/PrivateRoute';
+import { DUERPage } from './pages/DUERPage';
 import './App.css';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/team" element={<TeamPage />} />
+            <Route path="/duer" element={<DUERPage />} />
           </Route>
         </Routes>
       </Router>

@@ -8,6 +8,7 @@ import teamRoutes from "./routes/team.routes";
 import authRoutes from "./routes/auth.routes";
 import crisisRoutes from "./routes/crisis.routes";
 import entrepriseRoutes from "./routes/entreprise.routes";
+import duerRoutes from "./routes/duer.routes";
 // ...autres imports
 
 const app = express();
@@ -42,6 +43,7 @@ app.use("/api", alertRoutes);
 app.use("/api", teamRoutes);
 app.use("/api", crisisRoutes);
 app.use("/api", entrepriseRoutes);
+app.use("/api", duerRoutes);
 
 // Apply auth middleware to all routes except login
 app.use((req, res, next) => {
