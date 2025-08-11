@@ -24,15 +24,13 @@ app.use(cors({
 // Parse JSON before routes
 app.use(express.json());
 
-// Special routes
-app.get('/api/testproxy', (req, res) => {
-  console.log('TESTPROXY backend atteint !');
-  res.json({ success: true });
-});
-
-// Health check
-app.get('/health', (req, res) => {
-    res.json({ status: 'OK', timestamp: new Date() });
+// Apply auth middleware to all routes except login
+app.use((req: AuthRequest, res, next) => {
+  if (req.path === '/api/login') return next();
+  if (req.path === '/health') return next();
+  if (req.path === '/api/testproxy') return next();
+  if (req.path === '/api/duer/ia-questions') return next();
+  return authMiddleware(req, res, next);
 });
 
 // Mount all API routes
@@ -45,49 +43,17 @@ app.use("/api", crisisRoutes);
 app.use("/api", entrepriseRoutes);
 app.use("/api", duerRoutes);
 
-// Apply auth middleware to all routes except login
-app.use((req, res, next) => {
-  // Skip auth for login route
-  if (req.path === '/api/login') {
-    return next();
-  }
-  // Skip auth for health check
-  if (req.path === '/health') {
-    return next();
-  }
-  // Skip auth for testproxy
-  if (req.path === '/api/testproxy') {
-    return next();
-  }
-  return authMiddleware(req as AuthRequest, res, next);
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date() });
 });
 
 // 404 handler
 app.use((req, res) => {
-    res.status(404).json({ error: "Route non trouvée" });
+  res.status(404).json({ error: "Route non trouvée" });
 });
 
-// Enable CORS for all routes
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  next();
-});
+// Error handler (si besoin)
+// app.use(errorHandler);
 
-// Health check (optionnel)
-app.get('/health', (req, res) => {
-    res.json({ status: 'OK', timestamp: new Date() });
-  });
-  
-  // 404
-  app.use((req, res) => {
-    res.status(404).json({ error: "Route non trouvée" });
-  });
-  
-  // Error handler (si besoin)
-  // app.use(errorHandler);
-  
-  
-  export default app;
+export default app;

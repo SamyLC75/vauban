@@ -1,5 +1,6 @@
 // vauban-backend/src/controllers/duer.controller.ts
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth.middleware';
 import { DUERPromptsService } from '../services/duer-prompts.service';
 import { MistralService } from '../services/mistral.service';
 
@@ -13,7 +14,10 @@ const duerStorage = new Map<string, any>();
  * POST /api/duer/ia-questions
  * Génère des questions pour affiner le DUER
  */
-export const generateQuestions = async (req: Request, res: Response) => {
+export const generateQuestions = async (req: AuthRequest, res: Response) => {
+  console.log('🚨 DUER generateQuestions appelé!');
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
   try {
     const { sector, size } = req.body;
     
@@ -71,7 +75,11 @@ export const generateQuestions = async (req: Request, res: Response) => {
  * POST /api/duer/ia-generate
  * Génère le DUER complet avec l'IA
  */
-export const generateDUER = async (req: Request, res: Response) => {
+export const generateDUER = async (req: AuthRequest, res: Response) => {
+  console.log('🚨 DUER generateDUER appelé!');
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  console.log('User:', req.user);
   try {
     const { sector, size, unites, historique, contraintes, reponses } = req.body;
     

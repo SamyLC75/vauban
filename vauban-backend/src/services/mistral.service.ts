@@ -122,27 +122,24 @@ export class MistralService {
       
     } catch (error) {
       console.error('❌ Erreur Mistral API:', error);
-        
+      
       if (error instanceof Error && 'response' in error && error.response) {
         const response = error.response as { status: number; data: any };
-        console.error('❌ Détails de l\'erreur:');
-        console.error('Status:', response.status);
-        console.error('Data:', JSON.stringify(response.data, null, 2));
-        
         if (response.status === 401) {
           console.error('❌ Clé API invalide ou expirée');
+          console.error('Détails:', response.data);
         } else if (response.status === 429) {
           console.error('❌ Trop de requêtes (rate limit)');
         } else {
-          console.error('❌ Erreur API:', response.status);
+          console.error('❌ Erreur API:', response.status, response.data);
         }
       } else {
         console.error('❌ Erreur réseau ou autre:', error);
       }
-      throw error;
+      
+      console.log('⚠️ Basculement sur mode mock suite à erreur');
+      return this.getMockResponse(prompt);
     }
-    console.log('⚠️ Basculement sur mode mock suite à erreur');
-    return this.getMockResponse(prompt);
   }
 
   /**

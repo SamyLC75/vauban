@@ -1,5 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || "vauban_dev_secret";
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
