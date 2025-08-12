@@ -1,12 +1,11 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Button } from '../ui/Button';
 
 export const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, organization, isOfflineMode, toggleOfflineMode, logout } = useAuth();
+  const { user, isOfflineMode, toggleOfflineMode, logout } = useAuth();
 
   const navigation = [
     { name: 'Tableau de bord', href: '/dashboard' },
