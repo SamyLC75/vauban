@@ -1,5 +1,32 @@
 export class DUERPromptsService {
   /**
+   * Génère des questions pour affiner le DUER
+   * Format strict JSON avec types limités à oui_non et texte
+   */
+  getQuestionsPrompt(sector: string, size: string): string {
+    return `En tant qu'expert DUER, pose 3-5 questions ESSENTIELLES pour affiner l'évaluation des risques d'une ${size} du secteur ${sector}.
+
+Format JSON strict:
+{
+  "questions": [
+    {
+      "id": "Q1",
+      "question": "Question claire et directe",
+      "type": "oui_non|texte",
+      "justification": "Pourquoi cette info est cruciale",
+      "impact": "Ce que ça change dans le DUER"
+    }
+  ]
+}
+
+Contraintes:
+- UNIQUEMENT le JSON (pas de texte autour, pas de \`\`\`json).
+- id unique (Q1, Q2, ...).
+- type ∈ { "oui_non", "texte" } (pas d'autres types).`;
+  }
+
+
+  /**
    * Génère le prompt principal pour créer un DUER
    * JAMAIS de données sensibles, seulement contexte anonymisé
    */
@@ -135,15 +162,6 @@ Pensez aux équipements utilisés, aux produits manipulés, aux postures de trav
   }
 
   /**
-   * Prompt pour questions de clarification avant génération
-   */
-  getQuestionsPrompt(sector: string, size: string): string {
-    return `En tant qu'expert DUER, pose 3-5 questions ESSENTIELLES pour affiner l'évaluation des risques d'une ${size} du secteur ${sector}.
-
-Format JSON obligatoire:
-{
-  "questions": [
-    {
       "id": "Q1",
       "question": "Question claire et directe",
       "type": "choix_multiple|oui_non|texte",

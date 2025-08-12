@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from "express";
 import cors from "cors";
 import { authMiddleware, AuthRequest } from "./middleware/auth.middleware";
@@ -10,6 +11,7 @@ import crisisRoutes from "./routes/crisis.routes";
 import entrepriseRoutes from "./routes/entreprise.routes";
 import duerRoutes from "./routes/duer.routes";
 // ...autres imports
+import statusRoutes from "./routes/status.routes";
 
 const app = express();
 
@@ -29,12 +31,14 @@ app.use((req: AuthRequest, res, next) => {
   if (req.path === '/api/login') return next();
   if (req.path === '/health') return next();
   if (req.path === '/api/testproxy') return next();
+  if (req.path === '/api/status') return next();
   if (req.path === '/api/duer/ia-questions') return next();
   return authMiddleware(req, res, next);
 });
 
 // Mount all API routes
 app.use("/api", authRoutes);
+app.use("/api", statusRoutes);
 app.use("/api", pcaRoutes);
 app.use("/api", actionRoutes);
 app.use("/api", alertRoutes);

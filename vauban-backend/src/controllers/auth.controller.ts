@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { FrenchCodesService } from '../services/frenchCodes.service';
-
+import { jwtConfig } from '../config/jwt';
+import { DUERStore } from '../store/duer.store';
 export class AuthController {
   private organizations = new Map<string, any>();
   private users = new Map<string, any>();
@@ -44,19 +45,22 @@ export class AuthController {
     // Générer token
     const token = jwt.sign(
       { userId: adminId, orgId, role: 'admin' },
-      process.env.JWT_SECRET || 'secret',
+      jwtConfig.secret,
       { expiresIn: '7d' }
     );
     
+    // Get user's DUER stats
+    const myDuers = DUERStore.listByOwner(adminId);
+    const last = [...myDuers].sort((a, b) => a.dateCreation < b.dateCreation ? 1 : -1)[0];
+
     res.json({
       success: true,
-      orgCode,
       token,
-      user: {
-        id: adminId,
-        pseudonym: adminPseudonym,
-        frenchCode,
-        role: 'admin'
+      user: admin,
+      stats: {
+        duerCount: myDuers.length,
+        lastDUERId: last?.id || null,
+        lastDUERAt: last?.dateCreation || null,
       },
       organization
     });
@@ -97,7 +101,7 @@ export class AuthController {
     // Générer token
     const token = jwt.sign(
       { userId: user.id, orgId: org.id, role: user.role },
-      process.env.JWT_SECRET || 'secret',
+      jwtConfig.secret,
       { expiresIn: '7d' }
     );
     

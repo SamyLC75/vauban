@@ -3,6 +3,23 @@ import axios from 'axios';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
+// ---- Helper: extraction JSON robuste depuis un texte IA ----
+function extractJsonFromText(content: string): string {
+  if (!content) return content;
+  let txt = content.trim();
+
+  // Enlever les fences ```json ... ```
+  if (txt.startsWith('```')) {
+    txt = txt.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  }
+
+  // Isoler le 1er bloc { ... } si du texte parasite
+  const m = txt.match(/\{[\s\S]*\}/);
+  if (m) return m[0];
+
+  return txt;
+}
+
 interface MistralMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -31,6 +48,11 @@ interface MistralResponse {
 export class MistralService {
   private apiKey = process.env.MISTRAL_API_KEY || '';
   private endpoint = 'https://api.mistral.ai/v1/chat/completions';
+
+  // ✅ lis le modèle & paramètres depuis l'env
+  private model = process.env.MISTRAL_MODEL || 'mistral-small';
+  private temperature = Number(process.env.MISTRAL_TEMPERATURE ?? 0.7);
+  private maxTokens = Number(process.env.MISTRAL_MAX_TOKENS ?? 4000);
 
   constructor() {
     if (!this.apiKey) {
@@ -65,13 +87,17 @@ export class MistralService {
         }
       ];
 
-      const requestBody = {
-        model: 'mistral-tiny', // Modèle gratuit
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 2000,
-        // Note: response_format n'est pas supporté par mistral-tiny
+      const requestBody: any = {
+        model: this.model,
+        messages,
+        temperature: this.temperature,
+        max_tokens: this.maxTokens,
       };
+
+      // ✅ forcer JSON si pas le modèle "tiny"
+      if (!/tiny/i.test(this.model)) {
+        requestBody.response_format = { type: 'json_object' };
+      }
 
       console.log('🌐 URL:', this.endpoint);
       console.log('🔑 Headers:', {
@@ -96,21 +122,17 @@ export class MistralService {
       const mistralResponse = response.data as MistralResponse;
       
       if (mistralResponse.choices && mistralResponse.choices.length > 0) {
-        const content = mistralResponse.choices[0].message.content;
+        const content = mistralResponse.choices[0].message.content || '';
         console.log('📄 Contenu reçu (100 premiers caractères):', content.substring(0, 100));
-        
-        // Essayer de nettoyer la réponse si elle contient du texte avant le JSON
-        let jsonContent = content;
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          jsonContent = jsonMatch[0];
-        }
-        
-        // Vérifier que c'est du JSON valide
+
+        // Extraction JSON centralisée
+        const jsonCandidate = extractJsonFromText(content);
+
+        // Valider que c'est bien du JSON
         try {
-          JSON.parse(jsonContent);
-          return jsonContent;
-        } catch (e) {
+          JSON.parse(jsonCandidate);
+          return jsonCandidate;
+        } catch {
           console.error('⚠️ Réponse non-JSON, tentative de nettoyage...');
           // Si ce n'est pas du JSON, on retourne quand même pour debug
           console.log('Réponse brute:', content);

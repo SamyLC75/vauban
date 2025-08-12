@@ -1,17 +1,15 @@
 import { Router } from 'express';
-import { AuthRequest } from '../middleware/auth.middleware';
+import { optionalAuth, AuthRequest } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.get('/status', async (req: AuthRequest, res) => {
+router.get('/status', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    // Check if Mistral API key is configured
-    const mistralKey = process.env.MISTRAL_API_KEY;
-    const mistralConfigured = !!mistralKey;
-
+    const mistralConfigured = !!process.env.MISTRAL_API_KEY;
     res.json({
       authenticated: !!req.user,
       mistralConfigured,
+      mistralModel: process.env.MISTRAL_MODEL || 'mistral-small',
       timestamp: new Date()
     });
   } catch (error) {

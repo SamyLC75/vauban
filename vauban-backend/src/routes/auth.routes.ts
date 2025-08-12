@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { getUsers } from "../utils/userStore";
 import { Request, Response } from "express";
-const JWT_SECRET = process.env.JWT_SECRET || "vauban_dev_secret";
+import { jwtConfig } from "../config/jwt";
 const router = Router();
 
 router.post("/login", async (req: Request, res: Response) => {
@@ -44,7 +44,7 @@ router.post("/login", async (req: Request, res: Response) => {
       maxUsage: user.maxUsage,
       currentUsage: user.currentUsage,
     },
-    JWT_SECRET,
+    jwtConfig.secret,
     { expiresIn: "2h" }
   );
 
