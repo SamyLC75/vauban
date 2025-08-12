@@ -1,0 +1,973 @@
+{
+  "DUER-1755007240418-mv57ltmmg": {
+    "id": "DUER-1755007240418-mv57ltmmg",
+    "ownerUserId": "unknown",
+    "dateCreation": "2025-08-12T14:00:40.418Z",
+    "orgCode": "DEMO",
+    "duer": {
+      "secteur": "Startup Informatique",
+      "date_generation": "2024-01-20",
+      "unites": [
+        {
+          "nom": "Innovation",
+          "risques": [
+            {
+              "id": "R001",
+              "danger": "Burnout lié à un travail intense et stressant",
+              "situation": "Travailler plus de 45 heures par semaine et manque de temps de détente",
+              "gravite": 4,
+              "probabilite": 3,
+              "priorite": 12,
+              "mesures_existantes": [],
+              "mesures_proposees": [
+                {
+                  "type": "formation",
+                  "description": "Formation à la gestion du stress et au travail en équipe",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€€",
+                  "reference": "Article L.122-5 du Code du Travail"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable du département Innovation",
+                "echeance": "6 mois",
+                "indicateur": "Réduction du nombre de jours de congés pris par trop"
+              }
+            },
+            {
+              "id": "R002",
+              "danger": "Cyberattaque",
+              "situation": "Manque de sécurité informatique et de sauvegarde des données",
+              "gravite": 4,
+              "probabilite": 2,
+              "priorite": 8,
+              "mesures_existantes": [],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Installation d'un système de sécurité informatique et de sauvegarde réguliers",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€€",
+                  "reference": "Article L.1121-1 du Code de la Sécurité Intérieure"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de la sécurité informatique",
+                "echeance": "3 mois",
+                "indicateur": "Nombre total de cyberattaque par an"
+              }
+            }
+          ]
+        },
+        {
+          "nom": "Commercial",
+          "risques": [
+            {
+              "id": "R003",
+              "danger": "Harcelement (prud'homme)",
+              "situation": "Tensions entre collègues et manque de dialogue",
+              "gravite": 3,
+              "probabilite": 3,
+              "priorite": 9,
+              "mesures_existantes": [],
+              "mesures_proposees": [
+                {
+                  "type": "formation",
+                  "description": "Formation à la gestion des conflits et à la prévention du harcèlement",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Article L.122-2 du Code du Travail"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable du département Commercial",
+                "echeance": "6 mois",
+                "indicateur": "Nombre de plaintes de harcèlement par an"
+              }
+            },
+            {
+              "id": "R004",
+              "danger": "Perte client à cause d'un départ brutal",
+              "situation": "Manque de connaissances de la part des collaborateurs sur la gestion de crise",
+              "gravite": 3,
+              "probabilite": 3,
+              "priorite": 9,
+              "mesures_existantes": [],
+              "mesures_proposees": [
+                {
+                  "type": "formation",
+                  "description": "Formation à la gestion de crise et à la sécurité des données",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Article L.1121-1 du Code de la Sécurité Intérieure"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable du département Commercial",
+                "echeance": "6 mois",
+                "indicateur": "Réduction du nombre de pertes de clients par an"
+              }
+            }
+          ]
+        }
+      ],
+      "synthese": {
+        "nb_risques_critiques": 2,
+        "nb_risques_importants": 2,
+        "nb_risques_moderes": 2,
+        "top_3_priorites": [
+          "Cyberattaque",
+          "Burnout",
+          "Harcelement (prud'homme)"
+        ],
+        "budget_prevention_estime": "€€€-€€€€",
+        "conformite_reglementaire": {
+          "points_forts": [
+            "Formation régulière à la sécurité",
+            "Installation de systèmes de sécurité informatique"
+          ],
+          "points_vigilance": [
+            "Gestion du stress",
+            "Gestion des conflits"
+          ]
+        }
+      }
+    }
+  },
+  "DUER-1755007260757-05ueq92xl": {
+    "id": "DUER-1755007260757-05ueq92xl",
+    "ownerUserId": "unknown",
+    "dateCreation": "2025-08-12T14:01:00.758Z",
+    "orgCode": "DEMO",
+    "duer": {
+      "secteur": "Startup Informatique",
+      "date_generation": "2024-01-20",
+      "unites": [
+        {
+          "nom": "Innovation",
+          "risques": [
+            {
+              "id": "R001",
+              "danger": "Fatigue professionnelle (burnout) en raison d'horaires irreguliers et de la pression de l'innovation",
+              "situation": "Travail en continu et surtout en période de crunch",
+              "gravite": 3,
+              "probabilite": 3,
+              "priorite": "9",
+              "mesures_existantes": [
+                "Politique d'horaire maximal"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Installation d'un système d'horaires réguliers et respectés",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Code du travail, Art. L.3141-1"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de l'équipe Innovation",
+                "echeance": "6 mois",
+                "indicateur": "Réduction de 20% des heures supplémentaires"
+              }
+            },
+            {
+              "id": "R002",
+              "danger": "Cyberattaque en raison de l'utilisation de logiciels ou de plateformes non sécurisées",
+              "situation": "Utilisation de logiciels libres ou de plateformes peu sécurisées pour économiser des coûts",
+              "gravite": 4,
+              "probabilite": 2,
+              "priorite": "8",
+              "mesures_existantes": [
+                "Politique de sécurité des données"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Mise en place d'un système de protection informatique professionnel",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€€",
+                  "reference": "Code de la sécurité sociale, Art. R142-12"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable des systèmes d'information",
+                "echeance": "3 mois",
+                "indicateur": "Aucune cyberattaque détectée"
+              }
+            }
+          ]
+        },
+        {
+          "nom": "Commercial",
+          "risques": [
+            {
+              "id": "R003",
+              "danger": "Changements brusques de clientèle en raison de la concurrence ou de périodes de crise",
+              "situation": "Dépendance élevée des clients clés",
+              "gravite": 2,
+              "probabilite": 3,
+              "priorite": "6",
+              "mesures_existantes": [
+                "Politique de diversification des clients"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "individuelle",
+                  "description": "Gestion des relations clients pour diversifier les revenus",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€",
+                  "reference": "Code du commerce, Art. L.131-1"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de la commercialisation",
+                "echeance": "6 mois",
+                "indicateur": "Aucun client ne représente plus plus de 50% des ventes"
+              }
+            },
+            {
+              "id": "R004",
+              "danger": "Harcelement moral en raison de la pression professionnelle",
+              "situation": "Travail sous pression à cause du nombre important de projets",
+              "gravite": 3,
+              "probabilite": 2,
+              "priorite": "6",
+              "mesures_existantes": [
+                "Politique d'interdiction de tout harcèlement"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "individuelle",
+                  "description": "Formation sur le harcèlement moral et le stress pour les employés",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€",
+                  "reference": "Code du travail, Art. L.1131-1"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de la formation",
+                "echeance": "3 mois",
+                "indicateur": "Aucun signalement de harcèlement moral"
+              }
+            }
+          ]
+        }
+      ],
+      "synthese": {
+        "nb_risques_critiques": 1,
+        "nb_risques_importants": 2,
+        "nb_risques_moderes": 2,
+        "top_3_priorites": [
+          "Cyberattaque",
+          "Fatigue professionnelle",
+          "Changements brusques de clientèle"
+        ],
+        "budget_prevention_estime": "€€€",
+        "conformite_reglementaire": {
+          "points_forts": [
+            "Politique d'horaire maximal",
+            "Politique de sécurité des données",
+            "Politique de diversification des clients"
+          ],
+          "points_vigilance": [
+            "Mise en place de système de protection informatique professionnel",
+            "Gestion des relations clients pour diversifier les revenus",
+            "Formation sur le harcèlement moral et le stress pour les employés"
+          ]
+        }
+      }
+    }
+  },
+  "DUER-1755007450390-2ddjy79ao": {
+    "id": "DUER-1755007450390-2ddjy79ao",
+    "ownerUserId": "unknown",
+    "dateCreation": "2025-08-12T14:04:10.390Z",
+    "orgCode": "DEMO",
+    "duer": {
+      "secteur": "Startup Informatique",
+      "date_generation": "2024-01-20",
+      "unites": [
+        {
+          "nom": "Innovation",
+          "risques": [
+            {
+              "id": "R001",
+              "danger": "Exposition prolongée à l'écran lumineux et à la posture assise, avec risque de maux de dos et de maux de vue",
+              "situation": "Chaque membre de l'équipe travaille en moyenne plus de 8 heures par jour devant un écran lumineux sans interruption",
+              "gravite": 3,
+              "probabilite": 4,
+              "priorite": "12",
+              "mesures_existantes": [
+                "Postures ergonomiques recommandées"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "individuelle",
+                  "description": "Utilisation de supports ergonomiques (écran anti-rayonnement, clavier ergonomique, tablette de soustension)",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "INRS - DG/548"
+                },
+                {
+                  "type": "formation",
+                  "description": "Formation en prévention des maux de dos et maux de vue",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€",
+                  "reference": "INRS - DG/548"
+                }
+              ],
+              "suivi": {
+                "responsable": "Ergo-consultant",
+                "echeance": "3 mois",
+                "indicateur": "Réduction des maux de dos et maux de vue"
+              }
+            },
+            {
+              "id": "R002",
+              "danger": "Cyberattaque avec perte de données et d'informations sensibles",
+              "situation": "L'entreprise est en train de se préparer à entrer en bourse et possède des données personnelles sensibles",
+              "gravite": 4,
+              "probabilite": 3,
+              "priorite": "12",
+              "mesures_existantes": [
+                "Système de sécurité de base"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Mise en place d'un système de sécurité plus avancé, avec un équipement de sécurité réseau et un système de contrôle de gestion des accès",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€€",
+                  "reference": "Article R. 223-2 du code du travail et INRS - DG/394"
+                },
+                {
+                  "type": "formation",
+                  "description": "Formation en prévention des cyberattaques et gestion des risques",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€",
+                  "reference": "INRS - DG/394"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de la sécurité des données",
+                "echeance": "3 mois",
+                "indicateur": "Réduction du nombre d'incidents de cyberattaque"
+              }
+            }
+          ]
+        },
+        {
+          "nom": "Commercial",
+          "risques": [
+            {
+              "id": "R003",
+              "danger": "Harcélement dans le cadre du travail, avec risque de dépression, de stress et de burnout",
+              "situation": "Le harcèlement psychique est un problème récurrent dans l'entreprise",
+              "gravite": 4,
+              "probabilite": 3,
+              "priorite": "12",
+              "mesures_existantes": [
+                "Politique anti-harcèlement"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Formation des salariés sur la reconnaissance du harcèlement et des mesures à adopter",
+                  "delai": "immédiat",
+                  "cout_estime": "€",
+                  "reference": "Article L. 1224-1 du code du travail"
+                },
+                {
+                  "type": "collective",
+                  "description": "Mise en place d'un système d'alerte et d'un accompagnement psychologique pour les victimes",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Article L. 1224-1 du code du travail"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de l'équipe commerciale",
+                "echeance": "3 mois",
+                "indicateur": "Réduction du nombre de cas de harcèlement"
+              }
+            },
+            {
+              "id": "R004",
+              "danger": "Perte de clients à la suite du départ brut de salariés clés",
+              "situation": "Le départ d'un salarié clé peut entraîner des dommages importants à l'entreprise",
+              "gravite": 3,
+              "probabilite": 4,
+              "priorite": "12",
+              "mesures_existantes": [
+                "Mise en place d'un plan de succèsion"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Formation des salariés sur la gestion de leurs relations avec les clients et la gestion de leur départ",
+                  "delai": "immédiat",
+                  "cout_estime": "€",
+                  "reference": "Article L. 1224-1 du code du travail"
+                },
+                {
+                  "type": "collective",
+                  "description": "Mise en place d'un plan de succèsion pour les salariés clés",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Article L. 1224-1 du code du travail"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de l'équipe commerciale",
+                "echeance": "6 mois",
+                "indicateur": "Réduction du nombre de pertes de clients"
+              }
+            }
+          ]
+        }
+      ],
+      "synthese": {
+        "nb_risques_critiques": "1",
+        "nb_risques_importants": "2",
+        "nb_risques_modères": "2",
+        "top_3_priorites": [
+          "Cyberattaque",
+          "Harcélement",
+          "Perte de clients"
+        ],
+        "budget_prevention_estime": "20-30€€",
+        "conformite_reglementaire": {
+          "points_forts": [
+            "Politique anti-harcèlement",
+            "Mise en place d'un plan de succèsion"
+          ],
+          "points_vigilance": [
+            "Système de sécurité informatique",
+            "Gestion des accidents du travail"
+          ]
+        }
+      }
+    }
+  },
+  "DUER-1755007984675-drjr5aprg": {
+    "id": "DUER-1755007984675-drjr5aprg",
+    "ownerUserId": "unknown",
+    "dateCreation": "2025-08-12T14:13:04.675Z",
+    "orgCode": "DEMO",
+    "duer": {
+      "secteur": "Startup Informatique",
+      "date_generation": "2024-01-20",
+      "unites": [
+        {
+          "nom": "Innovation",
+          "risques": [
+            {
+              "id": "R001",
+              "danger": "Burnout en raison du travail intensif et des horaires décalés",
+              "situation": "Exposition des développeurs à des horaires excessifs et à une charge de travail importante",
+              "gravite": 3,
+              "probabilite": 3,
+              "priorite": "9",
+              "mesures_existantes": [],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Limite des heures de travail et de la charge de travail des développeurs",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Article R. 2224-22 du Code du travail"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de la gestion du temps des équipes",
+                "echeance": "6 mois",
+                "indicateur": "Taux d'absentéisme et de burnout des équipes"
+              }
+            },
+            {
+              "id": "R002",
+              "danger": "Cyberattaque ou vol de données sensibles",
+              "situation": "Exposition des données sensibles à des risques de vol ou de cyberattaque",
+              "gravite": 4,
+              "probabilite": 2,
+              "priorite": "8",
+              "mesures_existantes": [],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Implementation d'une stratégie de sécurité des données et d'un système de sauvegarde des données",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€€",
+                  "reference": "Guide INRS n°26"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de la sécurité des données",
+                "echeance": "1 an",
+                "indicateur": "Nombre de cyberattaques ou vols de données enregistrés"
+              }
+            }
+          ]
+        },
+        {
+          "nom": "Commercial",
+          "risques": [
+            {
+              "id": "R003",
+              "danger": "Harcelement",
+              "situation": "Exposition des collaborateurs aux agressions verbales et physiques",
+              "gravite": 2,
+              "probabilite": 3,
+              "priorite": "6",
+              "mesures_existantes": [],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Formation sur les comportements respectueux et sur la gestion des conflits",
+                  "delai": "immédiat",
+                  "cout_estime": "€",
+                  "reference": "Guide INRS n°48"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable des ressources humaines",
+                "echeance": "3 mois",
+                "indicateur": "Nombre de plaintes enregistrées"
+              }
+            },
+            {
+              "id": "R004",
+              "danger": "Perte de clients à cause de départ brutaux",
+              "situation": "Exposition du développement des affaires aux risques de perte de clients à cause de départ brutaux de salariés",
+              "gravite": 2,
+              "probabilite": 3,
+              "priorite": "6",
+              "mesures_existantes": [],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Implementation d'un plan de succession pour les collaborateurs clés",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Guide INRS n°46"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable du département marketing",
+                "echeance": "6 mois",
+                "indicateur": "Taux de chômage des collaborateurs clés"
+              }
+            }
+          ]
+        }
+      ],
+      "synthese": {
+        "nb_risques_critiques": "0",
+        "nb_risques_importants": "3",
+        "nb_risques_moderes": "2",
+        "top_3_priorites": [
+          "R002",
+          "R001",
+          "R003"
+        ],
+        "budget_prevention_estime": "20-30€",
+        "conformite_reglementaire": {
+          "points_forts": [
+            "Mise à jour des politiques de sécurité",
+            "Formation des collaborateurs"
+          ],
+          "points_vigilance": [
+            "Plan de succession non-implémenté",
+            "Risque de cyberattaque non-gérés"
+          ]
+        }
+      }
+    }
+  },
+  "DUER-1755008176689-fkd8j5vmz": {
+    "id": "DUER-1755008176689-fkd8j5vmz",
+    "ownerUserId": "unknown",
+    "dateCreation": "2025-08-12T14:16:16.689Z",
+    "orgCode": "DEMO",
+    "duer": {
+      "secteur": "Startup Informatique",
+      "date_generation": "2024-01-20",
+      "unites": [
+        {
+          "nom": "Innovation",
+          "risques": [
+            {
+              "id": "R001",
+              "danger": "Exposition prolongée aux écrans et au travail assis pourrait entraîner des problèmes de santé physique (douleurs, maux de dos, etc.)",
+              "situation": "L'équipe travaillant sur des projets prolongés à l'écran et en assis",
+              "gravite": 3,
+              "probabilite": 3,
+              "priorite": "9",
+              "mesures_existantes": [
+                "Chaises ergonomiques"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "individuelle",
+                  "description": "Programmation de pauses fréquentes pour relâchement des muscles",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€",
+                  "reference": "Article L.4123-2 du Code du Travail"
+                },
+                {
+                  "type": "individuelle",
+                  "description": "Utilisation d'une table réglable pour adapter la hauteur de l'écran",
+                  "delai": "immédiat",
+                  "cout_estime": "€",
+                  "reference": "Article L.4123-2 du Code du Travail"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de la santé et de la sécurité au travail",
+                "echeance": "6 mois",
+                "indicateur": "Réduction des problèmes de santé physique signalés"
+              }
+            },
+            {
+              "id": "R002",
+              "danger": "Risque cybersécurité lors de la manipulation de données sensibles",
+              "situation": "Manipulation de données personnelles sensibles",
+              "gravite": 4,
+              "probabilite": 2,
+              "priorite": "8",
+              "mesures_existantes": [
+                "Utilisation de logiciels antivirus"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Formation régulière aux bonnes pratiques de cybersécurité",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Guide de l'INRS sur la cybersécurité"
+                },
+                {
+                  "type": "collective",
+                  "description": "Mise en place d'un système de sauvegarde régulier des données",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Article L.212-1 du Code de la sécurité sociale"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de la sécurité informatique",
+                "echeance": "3 mois",
+                "indicateur": "Réseau antivirus actif et régulierment mis à jour, pas de cyber-attaques signalées"
+              }
+            }
+          ]
+        },
+        {
+          "nom": "Commercial",
+          "risques": [
+            {
+              "id": "R003",
+              "danger": "Travail sous pression ou stress professionnel pourrait entraîner le Burnout",
+              "situation": "Charges de travail importantes et pression pour répondre à des objectifs de vente",
+              "gravite": 3,
+              "probabilite": 3,
+              "priorite": "9",
+              "mesures_existantes": [
+                "Formation régulière pour la gestion du stress"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "individuelle",
+                  "description": "Mise en place d'une politique de flex-time pour réduire la pression",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€",
+                  "reference": "Article L.3121-1 du Code du Travail"
+                },
+                {
+                  "type": "collective",
+                  "description": "Mise en place d'un système de gestion de la charge de travail pour répartir les tâches",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Article L.6221-1 du Code du Travail"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable commercial",
+                "echeance": "6 mois",
+                "indicateur": "Réduction du nombre de signaux de stress signalés"
+              }
+            },
+            {
+              "id": "R004",
+              "danger": "Harcelement dans le travail pourrait affecter la santé physique et mentale des employés",
+              "situation": "Harcelement entre collègues ou par des clients",
+              "gravite": 4,
+              "probabilite": 2,
+              "priorite": "8",
+              "mesures_existantes": [
+                "Politique anti-harcèlement"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Formation régulière aux bonnes pratiques de harcèlement",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Article L.1224-1 du Code du Travail"
+                },
+                {
+                  "type": "collective",
+                  "description": "Mise en place d'un système de signalement de harcèlement",
+                  "delai": "immédiat",
+                  "cout_estime": "€",
+                  "reference": "Article L.1224-1 du Code du Travail"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de la santé et de la sécurité au travail",
+                "echeance": "3 mois",
+                "indicateur": "Pas de signalement de harcèlement signalé"
+              }
+            }
+          ]
+        }
+      ],
+      "synthese": {
+        "nb_risques_critiques": "0",
+        "nb_risques_importants": "3",
+        "nb_risques_moderes": "2",
+        "top_3_priorites": [
+          "R001",
+          "R002",
+          "R003"
+        ],
+        "budget_prevention_estime": "30-40€",
+        "conformite_reglementaire": {
+          "points_forts": [
+            "Politique de flex-time",
+            "Politique anti-harcèlement",
+            "Utilisation de logiciels antivirus"
+          ],
+          "points_vigilance": [
+            "Mesures de gestion de la charge de travail",
+            "Risque de cyber-attaques"
+          ]
+        }
+      }
+    }
+  },
+  "DUER-1755008730939-z4o7ii68j": {
+    "id": "DUER-1755008730939-z4o7ii68j",
+    "ownerId": "2",
+    "dateCreation": "2025-08-12T14:25:30.939Z",
+    "orgCode": "DEMO",
+    "duer": {
+      "secteur": "Test",
+      "date_generation": "2024-01-20",
+      "unites": [
+        {
+          "nom": "Unité 1",
+          "risques": [
+            {
+              "id": "R001",
+              "danger": "Exposition à des rayonnements électromagnétiques excessifs en raison de l'utilisation de matériels informatiques avancés.",
+              "situation": "Employés travaillant près de matériels informatiques pendant des heures importantes.",
+              "gravite": 3,
+              "probabilite": 4,
+              "priorite": "12",
+              "mesures_existantes": [
+                "Utilisation de l'écran anti-rayonnements"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Positionnement des écrans anti-rayonnements près des employés.",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Article R4622-6 Code du travail"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable des systèmes informatiques",
+                "echeance": "6 mois",
+                "indicateur": "Reduction de la dose de rayonnement mesurée"
+              }
+            },
+            {
+              "id": "R002",
+              "danger": "Risque de blessures par coupures dues à l'utilisation de matériels tranchants.",
+              "situation": "Présence de matériels tranchants dans les unités de travail.",
+              "gravite": 2,
+              "probabilite": 3,
+              "priorite": "6",
+              "mesures_existantes": [
+                "Vêtements de protection appropriés"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "individuelle",
+                  "description": "Enseignement du maniement sécuritaire des matériels tranchants.",
+                  "delai": "immédiat",
+                  "cout_estime": "€",
+                  "reference": "Article R4621-2 Code du travail"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable des unités de travail",
+                "echeance": "3 mois",
+                "indicateur": "Reduction du nombre de blessures par coupures"
+              }
+            }
+          ]
+        },
+        {
+          "nom": "Unité 2",
+          "risques": [
+            {
+              "id": "R003",
+              "danger": "Risque d'overstrain en raison de postures de travail inadéquates.",
+              "situation": "Postures de travail répétitives et sans changement pendant des périodes prolongées.",
+              "gravite": 3,
+              "probabilite": 4,
+              "priorite": "12",
+              "mesures_existantes": [
+                "Érgochairs appropriés"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Formation aux bonnes postures de travail.",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Article R4621-3 Code du travail"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable des unités de travail",
+                "echeance": "6 mois",
+                "indicateur": "Reduction du nombre de souffrances liées aux postures"
+              }
+            }
+          ]
+        }
+      ],
+      "synthese": {
+        "nb_risques_critiques": 0,
+        "nb_risques_importants": 3,
+        "nb_risques_moderes": 0,
+        "top_3_priorites": [
+          "R001",
+          "R002",
+          "R003"
+        ],
+        "budget_prevention_estime": "20-40€",
+        "conformite_reglementaire": {
+          "points_forts": [
+            "Utilisation de vêtements de protection appropriés"
+          ],
+          "points_vigilance": [
+            "Formation incomplète aux bonnes postures de travail"
+          ]
+        }
+      }
+    }
+  },
+  "DUER-1755008752074-du3093p0s": {
+    "id": "DUER-1755008752074-du3093p0s",
+    "ownerId": "2",
+    "dateCreation": "2025-08-12T14:25:52.074Z",
+    "orgCode": "DEMO",
+    "duer": {
+      "secteur": "Test",
+      "date_generation": "2024-01-20",
+      "unites": [
+        {
+          "nom": "Unité de test 1",
+          "risques": [
+            {
+              "id": "R001",
+              "danger": "Exposition aux rayonnements électromagnétiques dus aux dispositifs de test",
+              "situation": "Tous les opérateurs sont exposés pendant toute leur durée de travail",
+              "gravite": 3,
+              "probabilite": 3,
+              "priorite": "9",
+              "mesures_existantes": [
+                "Vêtements de protection"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "collective",
+                  "description": "Limiter la durée de l'exposition aux rayonnements",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Article R4121-5 Code du travail"
+                },
+                {
+                  "type": "individuelle",
+                  "description": "Utiliser des lunettes de protection",
+                  "delai": "immédiat",
+                  "cout_estime": "€",
+                  "reference": "Article R4121-21 Code du travail"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de la sécurité au travail",
+                "echeance": "6 mois",
+                "indicateur": "Taux de respect de la durée limite d'exposition"
+              }
+            }
+          ]
+        },
+        {
+          "nom": "Unité de test 2",
+          "risques": [
+            {
+              "id": "R002",
+              "danger": "Risques d'accidents lors de la manipulation des matériels de test",
+              "situation": "Tous les opérateurs sont exposés lors de la manipulation",
+              "gravite": 2,
+              "probabilite": 4,
+              "priorite": "8",
+              "mesures_existantes": [
+                "Formation initiale"
+              ],
+              "mesures_proposees": [
+                {
+                  "type": "formation",
+                  "description": "Formation en sécurité au travail",
+                  "delai": "moyen_terme",
+                  "cout_estime": "€€",
+                  "reference": "Article R4121-1 Code du travail"
+                }
+              ],
+              "suivi": {
+                "responsable": "Responsable de la sécurité au travail",
+                "echeance": "3 mois",
+                "indicateur": "Taux de respect des consignes de sécurité"
+              }
+            }
+          ]
+        }
+      ],
+      "synthese": {
+        "nb_risques_critiques": "0",
+        "nb_risques_importants": "2",
+        "nb_risques_moderes": "0",
+        "top_3_priorites": [
+          "R001",
+          "R002"
+        ],
+        "budget_prevention_estime": "2-3€",
+        "conformite_reglementaire": {
+          "points_forts": [
+            "Formation initiale"
+          ],
+          "points_vigilance": [
+            "Limitation de l'exposition aux rayonnements électromagnétiques"
+          ]
+        }
+      }
+    }
+  }
+}

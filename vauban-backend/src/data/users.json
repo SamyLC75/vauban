@@ -1,0 +1,18 @@
+[
+  {
+    "id": "1",
+    "username": "Samy",
+    "passwordHash": "$2b$10$2XYoZytNMQMY22AOGOXEe.5n1FM7UW2bWgWwLA5c.3KQ2oalYdXhS", 
+    "role": "admin",
+    "maxUsage": 100,
+    "currentUsage": 0
+  },
+  {
+    "id": "2",
+    "username": "Takaya",
+    "passwordHash": "$2b$10$Ql8hTOWqakDVwHXVSXMny.b0Gug5teHGh2zhzkCRREKolfeea833y",
+    "role": "user",
+    "maxUsage": 10,
+    "currentUsage": 0
+  }
+]

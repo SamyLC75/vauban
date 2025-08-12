@@ -1,0 +1,16 @@
+# dépendances
+**/node_modules/
+
+# secrets
+**/.env
+
+# outputs de build (si tu en crées)
+build/
+dist/
+
+# fichiers IDE / logs
+.vscode/
+*.log
+.DS_Store
+
+node_modules
