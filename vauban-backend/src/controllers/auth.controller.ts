@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth.middleware';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { FrenchCodesService } from '../services/frenchCodes.service';
@@ -8,7 +9,7 @@ export class AuthController {
   private organizations = new Map<string, any>();
   private users = new Map<string, any>();
 
-  async createOrganization(req: Request, res: Response) {
+  async createOrganization(req: AuthRequest, res: Response) {
     const { name, sector, size, adminPseudonym } = req.body;
     
     // Générer code organisation
@@ -66,7 +67,7 @@ export class AuthController {
     });
   }
 
-  async login(req: Request, res: Response) {
+  async login(req: AuthRequest, res: Response) {
     const { orgCode, pseudonym } = req.body;
     
     // Trouver l'organisation
@@ -118,7 +119,7 @@ export class AuthController {
     });
   }
 
-  async joinOrganization(req: Request, res: Response) {
+  async joinOrganization(req: AuthRequest, res: Response) {
     // Similaire à login mais pour rejoindre une org existante
     return this.login(req, res);
   }

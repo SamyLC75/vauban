@@ -1,3 +1,6 @@
+// src/services/duer-prompts.service.ts
+import { SizeBenchmarks } from "./benchmarks.service";
+
 export class DUERPromptsService {
   /**
    * Génère des questions pour affiner le DUER

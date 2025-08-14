@@ -1,3 +1,4 @@
+// src/components/risk/RiskForm.tsx
 import React, { useState, useEffect } from "react";
 import { Risk } from "../../types/risk";
 import { saveRisks, loadRisks } from "../../utils/storage";

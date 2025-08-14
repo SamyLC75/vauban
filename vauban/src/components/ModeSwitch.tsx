@@ -1,3 +1,4 @@
+// src/components/ModeSwitch.tsx
 import React from "react";
 
 export default function ModeSwitch({ mode, setMode }: { mode: string; setMode: (mode: string) => void }) {

@@ -1,3 +1,4 @@
+// src/components/risk/RiskCard.tsx
 import React from "react";
 export default function RiskCard({ risk }: { risk: any }) {
   const color = ["bg-green-100","bg-orange-100","bg-red-100"][risk.gravite-1] || "bg-gray-100";

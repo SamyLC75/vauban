@@ -1,3 +1,4 @@
+// src/components/ui/InfoBubble.tsx
 import React from "react";
 export default function InfoBubble({ text }: { text: string }) {
   return (

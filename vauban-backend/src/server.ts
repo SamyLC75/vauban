@@ -1,3 +1,5 @@
+// src/server.ts
+import express from 'express';  
 import http from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
@@ -11,7 +13,7 @@ const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
     credentials: true
   }
 });

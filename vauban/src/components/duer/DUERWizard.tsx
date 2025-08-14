@@ -1,4 +1,7 @@
+// src/components/duer/DUERWizard.tsx
 import React, { useEffect, useMemo, useState } from "react";
+import { RiskMatrixEditor } from "../risks/RiskMatrixEditor";
+import { QuestionFlow, Question } from "../flow/QuestionFlow";
 import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
@@ -96,12 +99,13 @@ interface DUERGenerateResponse {
   error?: string;
 }
 
-interface IAQuestion {
+export type IAQuestion = {
   id: string;
   question: string;
   type: "oui_non" | "texte" | string;
+  showIf?: { qid: string; equals: string }[];
   justification?: string;
-}
+};
 
 interface IAQuestionsResponse {
   questions: IAQuestion[];
@@ -178,16 +182,20 @@ const DUERWizard: React.FC = () => {
     historique: string;
     contraintes: string;
     reponses: Record<string, string>;
+    weightProb: number;
+    weightGrav: number;
   }>({
     sector: "",
     size: "PME",
     unites: [""],
     historique: "",
-    contraintes: "", // ajouté & envoyé au backend
+    contraintes: "",
     reponses: {},
+    weightProb: 1.1,
+    weightGrav: 1.15,
   });
 
-  const [questions, setQuestions] = useState<IAQuestion[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [generatedDUER, setGeneratedDUER] = useState<DUERDoc | null>(null);
   const [duerId, setDuerId] = useState<string | undefined>(undefined);
 
@@ -241,6 +249,8 @@ const DUERWizard: React.FC = () => {
         sector: formData.sector,
         size: formData.size,
         unites: filledUnits,
+        weightProb: formData.weightProb,
+        weightGrav: formData.weightGrav,
       };
 
       const data = await apiFetch<IAQuestionsResponse>(
@@ -251,7 +261,20 @@ const DUERWizard: React.FC = () => {
         }
       );
 
-      setQuestions(Array.isArray(data?.questions) ? data.questions : []);
+      // Convertir les questions IA en format QuestionFlow
+      const convertedQuestions = Array.isArray(data?.questions) 
+        ? data.questions.map(q => ({
+            id: q.id,
+            question: q.question,
+            type: q.type as "oui_non" | "texte",
+            showIf: q.showIf ? q.showIf.map(c => ({
+              qid: c.qid,
+              equals: c.equals
+            })) : undefined
+          })) 
+        : [];
+
+      setQuestions(convertedQuestions);
       setStep(2);
     } catch (e: any) {
       setError(e?.message || "Erreur lors de la récupération des questions.");
@@ -262,8 +285,8 @@ const DUERWizard: React.FC = () => {
 
   /** --------- Étape 2 : valider réponses --------- */
   const allAnswered = useMemo(() => {
-    if (!questions.length) return true; // si pas de questions, on autorise
-    return questions.every((q) => {
+    if (!questions.length) return true;
+    return questions.every(q => {
       const v = formData.reponses[q.id];
       if (q.type === "oui_non") return v === "oui" || v === "non";
       return typeof v === "string" && v.trim().length > 0;
@@ -294,6 +317,8 @@ const DUERWizard: React.FC = () => {
         historique: formData.historique || "",
         contraintes: formData.contraintes || "",
         reponses: formData.reponses || {},
+        weightProb: formData.weightProb,
+        weightGrav: formData.weightGrav,
       };
 
       const res: any = await apiFetch("/api/duer/ia-generate", {
@@ -480,103 +505,122 @@ const DUERWizard: React.FC = () => {
               Informations sur votre entreprise
             </h3>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium mb-2">
                   Secteur d'activité
                 </label>
                 <input
                   type="text"
                   value={formData.sector}
-                  onChange={(e) =>
-                    setFormData({ ...formData, sector: e.target.value })
-                  }
-                  placeholder="Ex: Commerce de détail, BTP, Services informatiques..."
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Ex: BTP, Restauration, Industrie..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium mb-2">
                   Taille de l'entreprise
                 </label>
                 <select
                   value={formData.size}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      size: e.target.value as "TPE" | "PME" | "ETI",
-                    })
-                  }
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    const newSize = e.target.value as "TPE" | "PME" | "ETI";
+                    const weights = {
+                      TPE: { weightProb: 1.0, weightGrav: 1.1 },
+                      PME: { weightProb: 1.1, weightGrav: 1.15 },
+                      ETI: { weightProb: 1.2, weightGrav: 1.2 }
+                    }[newSize];
+                    setFormData({ 
+                      ...formData, 
+                      size: newSize,
+                      weightProb: weights.weightProb,
+                      weightGrav: weights.weightGrav
+                    });
+                  }}
+                  className="w-full border rounded px-3 py-2"
                 >
-                  <option value="TPE">TPE (1-10 salariés)</option>
+                  <option value="TPE">TPE (moins de 10 salariés)</option>
                   <option value="PME">PME (10-250 salariés)</option>
-                  <option value="ETI">ETI (250-5000 salariés)</option>
+                  <option value="ETI">ETI (plus de 250 salariés)</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Unités de travail
-                </label>
-                {formData.unites.map((unite, index) => (
-                  <div key={index} className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      value={unite}
-                      onChange={(e) => {
-                        const arr = [...formData.unites];
-                        arr[index] = e.target.value;
-                        setFormData({ ...formData, unites: arr });
-                      }}
-                      placeholder="Ex: Bureau, Atelier, Entrepôt..."
-                      className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                    {index === formData.unites.length - 1 && (
-                      <button
-                        onClick={() =>
-                          setFormData({
-                            ...formData,
-                            unites: [...formData.unites, ""],
-                          })
-                        }
-                        className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-                      >
-                        +
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Historique d'accidents (optionnel)
-                </label>
-                <textarea
-                  value={formData.historique}
-                  onChange={(e) =>
-                    setFormData({ ...formData, historique: e.target.value })
-                  }
-                  placeholder="Décrivez brièvement les accidents survenus..."
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  rows={3}
+                <RiskMatrixEditor
+                  weightProb={formData.weightProb}
+                  weightGrav={formData.weightGrav}
+                  onChange={(prob, grav) => setFormData({
+                    ...formData,
+                    weightProb: prob,
+                    weightGrav: grav
+                  })}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Contraintes particulières (optionnel)
+                <label className="block text-sm font-medium mb-2">
+                  Unités de travail
+                </label>
+                <div className="space-y-2">
+                  {formData.unites.map((u, i) => (
+                    <div key={i} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={u}
+                        onChange={(e) => {
+                          const newUnits = [...formData.unites];
+                          newUnits[i] = e.target.value;
+                          setFormData({ ...formData, unites: newUnits });
+                        }}
+                        className="flex-1 border rounded px-3 py-2"
+                        placeholder="Ex: Atelier, Bureau, Site..."
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newUnits = [...formData.unites];
+                          newUnits.splice(i, 1);
+                          setFormData({ ...formData, unites: newUnits });
+                        }}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, unites: [...formData.unites, ""] })}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    + Ajouter une unité
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Historique des accidents
+                </label>
+                <textarea
+                  value={formData.historique}
+                  onChange={(e) => setFormData({ ...formData, historique: e.target.value })}
+                  className="w-full border rounded px-3 py-2 h-32"
+                  placeholder="Décrivez les accidents survenus dans l'entreprise au cours des 5 dernières années..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Contraintes spécifiques
                 </label>
                 <textarea
                   value={formData.contraintes}
-                  onChange={(e) =>
-                    setFormData({ ...formData, contraintes: e.target.value })
-                  }
-                  placeholder="Ex: obligations réglementaires, contraintes de site/procédés, etc."
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  rows={2}
+                  onChange={(e) => setFormData({ ...formData, contraintes: e.target.value })}
+                  className="w-full border rounded px-3 py-2 h-32"
+                  placeholder="Mentionnez les contraintes spécifiques à votre entreprise (ex: site classé, activités saisonnières...)"
                 />
               </div>
             </div>
@@ -604,69 +648,65 @@ const DUERWizard: React.FC = () => {
             <h3 className="text-lg font-semibold mb-4">
               Questions pour affiner votre DUER
             </h3>
-            <p className="text-gray-600 mb-6">
-              L'IA a généré ces questions pour mieux comprendre vos risques
-              spécifiques.
-            </p>
-
-            <div className="space-y-4">
-              {questions.map((q) => (
-                <div key={q.id} className="p-4 border rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <HelpCircle className="w-5 h-5 text-blue-600 mt-1" />
-                    <div className="flex-1">
-                      <p className="font-medium">{q.question}</p>
-                      {q.justification && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          {q.justification}
-                        </p>
-                      )}
-
-                      {q.type === "oui_non" ? (
-                        <div className="mt-3 flex gap-4">
-                          {["oui", "non"].map((val) => (
-                            <label className="flex items-center" key={val}>
-                              <input
-                                type="radio"
-                                name={q.id}
-                                value={val}
-                                checked={formData.reponses[q.id] === val}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    reponses: {
-                                      ...formData.reponses,
-                                      [q.id]: e.target.value,
-                                    },
-                                  })
-                                }
-                                className="mr-2"
-                              />
-                              {val[0].toUpperCase() + val.slice(1)}
-                            </label>
-                          ))}
-                        </div>
-                      ) : (
-                        <input
-                          type="text"
-                          value={formData.reponses[q.id] || ""}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              reponses: {
-                                ...formData.reponses,
-                                [q.id]: e.target.value,
-                              },
-                            })
-                          }
-                          className="mt-3 w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                          placeholder="Votre réponse..."
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="flex flex-col gap-4">
+              <div className="flex justify-between items-center">
+                <p className="text-gray-600">
+                  L'IA a généré ces questions pour mieux comprendre vos risques spécifiques.
+                </p>
+                <button
+                  onClick={async () => {
+                    try {
+                      setLoading(true);
+                      const payload = {
+                        sector: formData.sector,
+                        size: formData.size,
+                        unites: formData.unites,
+                        reponses: formData.reponses
+                      };
+                      const data = await apiFetch<IAQuestionsResponse>(
+                        "/api/duer/ia-questions",
+                        {
+                          method: "POST",
+                          body: JSON.stringify(payload),
+                        }
+                      );
+                      const newQuestions = data?.questions.map(q => ({
+                        id: q.id,
+                        question: q.question,
+                        type: q.type as "oui_non" | "texte",
+                        showIf: q.showIf ? q.showIf.map(c => ({
+                          qid: c.qid,
+                          equals: c.equals
+                        })) : undefined
+                      }));
+                      setQuestions([...questions, ...newQuestions]);
+                    } catch (e: any) {
+                      setError(e?.message || "Erreur lors de la récupération de nouvelles questions.");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <HelpCircle className="w-4 h-4" />
+                      Poser d'autres questions
+                    </>
+                  )}
+                </button>
+              </div>
+              
+              <QuestionFlow
+                questions={questions}
+                values={formData.reponses}
+                onChange={(id, val) =>
+                  setFormData(prev => ({ ...prev, reponses: { ...prev.reponses, [id]: val } }))
+                }
+              />
             </div>
 
             <div className="mt-6 flex justify-between">

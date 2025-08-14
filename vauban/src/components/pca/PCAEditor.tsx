@@ -1,3 +1,4 @@
+// src/components/pca/PCAEditor.tsx
 import React, { useState, useEffect } from "react";
 import { PCAPlan, PCAProcessusCritique } from "../../types/pca";
 import { savePCA, loadPCA } from "../../utils/pcaStorage";

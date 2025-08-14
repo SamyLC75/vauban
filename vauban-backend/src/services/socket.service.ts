@@ -1,5 +1,8 @@
+// src/services/socket.service.ts
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
+
+let ioRef: Server | null = null;
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -8,6 +11,7 @@ interface AuthenticatedSocket extends Socket {
 }
 
 export const socketHandler = (io: Server) => {
+  ioRef = io;
   // Middleware d'authentification
   io.use((socket: AuthenticatedSocket, next) => {
     try {
@@ -82,3 +86,15 @@ export const socketHandler = (io: Server) => {
     });
   });
 };
+
+// Fonction pour émettre des événements aux clients
+export function publish(event: string, payload: any, orgId?: string) {
+  if (!ioRef) return;
+  
+  const server = ioRef;
+  if (orgId) {
+    server.to(`org:${orgId}`).emit(event, payload);
+  } else {
+    server.emit(event, payload);
+  }
+}

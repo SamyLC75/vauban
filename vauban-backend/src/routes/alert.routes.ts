@@ -1,15 +1,15 @@
 import { Router, Request, Response } from 'express';
 import { AlertController } from '../controllers/alert.controller';
-import { requireAuth } from '../middleware/auth';
+import { authMiddleware } from "../middleware/auth.middleware";
 let alerts = [
     { id: "a1", message: "Alerte test", time: new Date().toLocaleTimeString(), sender: "Napoléon" }
   ];
 const router = Router();
 const alertController = new AlertController();
-router.use(requireAuth);
+// Removed redundant authMiddleware since it's already applied globally in app.ts
 
-router.get('/',requireAuth, (req: Request, res: Response) => res.json(alerts.slice(-5).reverse()));
-router.post("/", requireAuth, (req: Request, res: Response) => {
+router.get('/', authMiddleware, (req: Request, res: Response) => res.json(alerts.slice(-5).reverse()));
+router.post("/", authMiddleware, (req: Request, res: Response) => {
     const { message, sender } = req.body;
     const alert = { id: Date.now().toString(), message, sender, time: new Date().toLocaleTimeString() };
     alerts.push(alert);

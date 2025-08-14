@@ -6,7 +6,7 @@ axios.defaults.headers.common['Content-Type'] = 'application/json';
 // Intercepteur pour ajouter le token
 axios.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem('vauban_auth_token');
+    const token = localStorage.getItem('vauban_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -23,7 +23,7 @@ axios.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token expiré ou invalide
-      sessionStorage.clear();
+      localStorage.removeItem('vauban_token');
       window.location.href = '/login';
     }
     return Promise.reject(error);

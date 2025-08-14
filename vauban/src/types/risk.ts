@@ -1,3 +1,4 @@
+// src/types/risk.ts
 export type Gravite = 1 | 2 | 3; // 1=faible, 2=moyenne, 3=forte
 
 export interface Risk {

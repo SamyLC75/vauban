@@ -1,52 +1,54 @@
-// vauban-backend/src/middleware/auth.middleware.ts
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { jwtConfig } from '../config/jwt';
+// src/middleware/auth.middleware.ts
+import { Request, Response, NextFunction } from "express";
+import jwt, { JwtPayload } from "jsonwebtoken";
+import { jwtConfig } from "../config/jwt";
 
-export interface AuthRequest extends Request {
-  userId?: string;
-  username?: string;
-  role?: 'admin' | 'user';
-  orgId?: string;
-  user?: { id: string; username: string; role: 'admin' | 'user' };
+export interface TokenPayload extends JwtPayload {
+  sub: string;
+  username: string;
+  role: "ADMIN" | "USER";
+  orgId: string;
 }
 
-function attachUserFromToken(req: AuthRequest) {
-  const h = req.headers.authorization || '';
-  const token = h.startsWith('Bearer ') ? h.slice(7) : '';
-  if (!token) return;
+export interface AuthRequest extends Request {
+  user?: { id: string; username: string; role: "ADMIN" | "USER"; orgId: string };
+}
 
-  const decoded = jwt.verify(token, jwtConfig.secret) as any;
-  // 👇 Aligne avec le payload signé lors du login: { id, username, role }
-  req.userId = decoded.id;
-  req.username = decoded.username;
-  req.role = decoded.role;
-  if (req.userId) {
-    req.user = { id: req.userId, username: req.username!, role: req.role! };
-  }
+function decodeToken(token: string): TokenPayload {
+  const decoded = jwt.verify(token, jwtConfig.secret) as JwtPayload;
+  // garde-fou runtime
+  if (
+    typeof decoded !== "object" ||
+    !decoded.sub ||
+    typeof decoded.sub !== "string"
+  ) throw new Error("Invalid token payload");
+  return decoded as TokenPayload;
+}
+
+export function attachUserFromToken(req: AuthRequest): void {
+  const h = req.headers.authorization || "";
+  const token = h.startsWith("Bearer ") ? h.slice(7) : "";
+  if (!token) return;
+  const payload = decodeToken(token);
+  req.user = {
+    id: payload.sub,
+    username: payload.username,
+    role: payload.role,
+    orgId: payload.orgId,
+  };
 }
 
 export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ error: 'Token manquant' });
-  }
-  
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
-    req.userId = decoded.userId;
-    req.orgId = decoded.orgId;
-    req.role = decoded.role;
+    attachUserFromToken(req);
+    if (!req.user) return res.status(401).json({ error: "Missing token" });
     next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Token invalide' });
+  } catch (e) {
+    return res.status(401).json({ error: "Invalid token" });
   }
 };
 
-
-
 export function optionalAuth(req: AuthRequest, _res: Response, next: NextFunction) {
-  try { attachUserFromToken(req); } catch { /* ignore */ }
+  try { attachUserFromToken(req); } catch { /* noop */ }
   next();
 }

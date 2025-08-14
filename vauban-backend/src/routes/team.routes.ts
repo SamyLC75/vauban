@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { requireAuth } from "../middleware/auth";
+import { authMiddleware } from "../middleware/auth.middleware";
 
 let team = [
   { id: "1", name: "Napoléon", role: "Directeur" },
@@ -9,12 +9,12 @@ let team = [
 const router = Router();
 
 // GET équipe
-router.get("/", requireAuth, (req: Request, res: Response) => {
+router.get("/", authMiddleware, (req: Request, res: Response) => {
   res.json(team);
 });
 
 // Ajout membre (optionnel pour ce soir)
-router.post("/", requireAuth, (req: Request, res: Response) => {
+router.post("/", authMiddleware, (req: Request, res: Response) => {
   const { name, role } = req.body;
   const newMember = { id: Date.now().toString(), name, role };
   team.push(newMember);

@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { saveActions, getActions } from "../controllers/action.controller";
-import { requireAuth } from "../middleware/auth";
+import { authMiddleware } from "../middleware/auth.middleware";
 const router = Router();
-router.post("/actions", requireAuth, saveActions);
-router.get("/actions", requireAuth, getActions);
+router.post("/actions", authMiddleware, saveActions);
+router.get("/actions", authMiddleware, getActions);
 
 export default router;

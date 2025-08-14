@@ -1,3 +1,4 @@
+// src/services/auth.service.ts
   export async function login(username: string, password: string) {
     console.log('Login attempt:', { username }); // Note: Don't log the password for security
     const res = await fetch("http://localhost:5000/api/login", {

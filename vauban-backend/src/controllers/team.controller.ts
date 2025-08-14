@@ -5,7 +5,7 @@ import { dbConfig } from '../config/database';
 export class TeamController {
   async getTeamMembers(req: AuthRequest, res: Response) {
     const members = Array.from(dbConfig.users.values())
-      .filter(user => user.orgId === req.orgId)
+      .filter(user => user.orgId === req.user!.orgId)
       .map(user => ({
         id: user.id,
         pseudonym: user.pseudonym,
@@ -21,14 +21,14 @@ export class TeamController {
   async updateStatus(req: AuthRequest, res: Response) {
     const { status } = req.body;
     
-    const user = dbConfig.users.get(req.userId!);
+    const user = dbConfig.users.get(req.user!.id);
     if (!user) {
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }
     
     user.status = status;
     user.lastSeen = new Date();
-    dbConfig.users.set(req.userId!, user);
+    dbConfig.users.set(req.user!.id, user);
     
     res.json({ success: true, status });
   }
@@ -45,7 +45,7 @@ export class TeamController {
       role,
       phone,
       email,
-      orgId: req.orgId,
+      orgId: req.user!.orgId,
       status: 'offline',
       createdAt: new Date()
     };

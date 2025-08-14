@@ -1,3 +1,5 @@
+
+// src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { User, Organization } from '../types';
 import * as AuthApi from '../services/auth.service'; // pour éviter collision des noms

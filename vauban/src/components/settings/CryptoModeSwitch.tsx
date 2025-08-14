@@ -1,3 +1,4 @@
+// src/components/settings/CryptoModeSwitch.tsx
 import React, { useState } from "react";
 import Badge from "../ui/Badge";
 

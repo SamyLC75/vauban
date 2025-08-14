@@ -5,7 +5,7 @@ import { dbConfig } from '../config/database';
 export class AlertController {
   async getAlerts(req: AuthRequest, res: Response) {
     const orgAlerts = Array.from(dbConfig.alerts.values())
-      .filter(alert => alert.orgId === req.orgId)
+      .filter(alert => alert.orgId === req.user!.orgId)
       .sort((a, b) => b.timestamp - a.timestamp);
     
     res.json({ alerts: orgAlerts });
@@ -18,8 +18,8 @@ export class AlertController {
       id: Date.now().toString(),
       type,
       message,
-      senderId: req.userId,
-      orgId: req.orgId,
+      senderId: req.user!.id,
+      orgId: req.user!.orgId,
       timestamp: new Date(),
       responses: []
     };
@@ -39,7 +39,7 @@ export class AlertController {
     }
     
     const response = {
-      userId: req.userId,
+      userId: req.user!.id,
       status,
       message,
       timestamp: new Date()

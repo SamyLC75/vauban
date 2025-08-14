@@ -1,0 +1,98 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum SizeClass {
+  TPE
+  PME
+  ETI
+}
+
+model Organization {
+  id        String  @id @default(cuid())
+  name      String
+  code      String  @unique
+  sector    String?
+  sizeClass SizeClass @default(PME)
+  users     User[]
+  duers     Duer[]
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id        String @id @default(cuid())
+  username  String @unique
+  password  String
+  role      Role   @default(USER)
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id])
+  createdAt DateTime @default(now())
+  Duer      Duer[]
+}
+
+model Duer {
+  id        String   @id @default(cuid())
+  orgId     String
+  ownerId   String
+  sector    String
+  sizeClass SizeClass
+  jsonEnc   Bytes    // DUER chiffré (AES-GCM)
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  org       Organization @relation(fields: [orgId], references: [id])
+  owner     User         @relation(fields: [ownerId], references: [id])
+  versions  DuerVersion[]
+}
+
+model DuerVersion {
+  id        String  @id @default(cuid())
+  duerId    String
+  version   Int
+  jsonEnc   Bytes
+  createdAt DateTime @default(now())
+  duer      Duer     @relation(fields: [duerId], references: [id])
+
+  @@unique([duerId, version])
+}
+
+model RiskTemplate {
+  id         String   @id @default(cuid())
+  sector     String   // ex: "boulangerie", "garage", "restaurant", "bureau", ...
+  unitName   String   // ex: "Fournil", "Atelier", "Caisse", ...
+  sizeClass  SizeClass
+  danger     String
+  situation  String
+  baseG      Int      // gravité de base (1..4)
+  baseP      Int      // probabilité de base (1..4)
+  measures   Json     // array d'objets mesure
+  references Json     // array articles INRS/Code du travail
+  createdAt  DateTime @default(now())
+}
+
+model Questionnaire {
+  id        String   @id @default(cuid())
+  name      String
+  sector    String? // null => générique cross-sector
+  content   Json     // nodes, edges, rules
+  createdAt DateTime @default(now())
+}
+
+model Benchmark {
+  id        String   @id @default(cuid())
+  sector    String?  // null => all sectors
+  sizeClass SizeClass
+  stats     Json     // { tmsRate:..., avgBudget:..., topRisks:[...] }
+  createdAt DateTime @default(now())
+}

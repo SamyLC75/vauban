@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import { authMiddleware, AuthRequest } from "./middleware/auth.middleware";
 import pcaRoutes from "./routes/pca.routes";
 import actionRoutes from "./routes/action.routes";
@@ -10,21 +11,26 @@ import authRoutes from "./routes/auth.routes";
 import crisisRoutes from "./routes/crisis.routes";
 import entrepriseRoutes from "./routes/entreprise.routes";
 import duerRoutes from "./routes/duer.routes";
+import engineRoutes from "./routes/engine.routes";
 // ...autres imports
 import statusRoutes from "./routes/status.routes";
 
 const app = express();
 
-// Enable CORS
+// Enable CORS (dynamic)
 app.use(cors({
-  origin: 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: (origin, cb) => cb(null, true), // à raffiner: liste blanche
   credentials: true
 }));
 
-// Parse JSON before routes
-app.use(express.json());
+// Parse JSON with limit
+app.use(express.json({ limit: "1mb" }));
+
+// Rate limiting
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 600, // par IP (ajouter override par user/org si besoin)
+}));
 
 // Apply auth middleware to all routes except login
 app.use((req: AuthRequest, res, next) => {
@@ -46,6 +52,13 @@ app.use("/api", teamRoutes);
 app.use("/api", crisisRoutes);
 app.use("/api", entrepriseRoutes);
 app.use("/api", duerRoutes);
+app.use("/api", engineRoutes);
+
+// Error handling middleware
+app.use((err: any, _req: any, res: any, _next: any) => {
+  console.error(err);
+  res.status(500).json({ error: "Erreur serveur", message: err?.message || "unknown" });
+});
 
 // Health check
 app.get('/health', (req, res) => {

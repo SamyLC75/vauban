@@ -1,64 +1,28 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
+import jwt, { type Secret } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { getUsers } from "../utils/userStore";
-import { Request, Response } from "express";
+import { prisma } from "../services/prisma";
 import { jwtConfig } from "../config/jwt";
+
 const router = Router();
 
-router.post("/login", async (req: Request, res: Response) => {
-  const { username, password } = req.body;
-  const users = getUsers();
+router.post("/login", async (req, res) => {
+  const { username, password } = req.body as { username: string; password: string };
+  const user = await prisma.user.findUnique({ where: { username } });
+  if (!user) return res.status(401).json({ error: "Identifiants invalides" });
 
-  // DEBUG: log de tous les utilisateurs
-  console.log("Users loaded:", users);
+  const ok = await bcrypt.compare(password, user.password);
+  if (!ok) return res.status(401).json({ error: "Identifiants invalides" });
 
-  // Recherche de l'utilisateur (attention à la casse !)
-  const user = users.find((u: any) => u.username === username);
-  console.log("Tentative login =>", { username, password, userFound: !!user, hash: user?.passwordHash });
+  const payload = {
+    sub: user.id,
+    username: user.username,
+    role: user.role,               // "ADMIN" | "USER"
+    orgId: user.orgId,
+  };
 
-  if (!user) {
-    return res.status(401).json({ error: "Identifiant incorrect" });
-  }
-
-  // Vérification du mot de passe (hash bcrypt)
-  let ok = false;
-  try {
-    ok = await bcrypt.compare(password, user.passwordHash);
-    console.log(`Résultat bcrypt.compare pour ${username} :`, ok);
-  } catch (err) {
-    console.error("Erreur bcrypt.compare :", err);
-    return res.status(500).json({ error: "Erreur serveur lors de la vérification du mot de passe" });
-  }
-
-  if (!ok) {
-    return res.status(401).json({ error: "Mot de passe incorrect" });
-  }
-
-  // JWT Token
-  const token = jwt.sign(
-    {
-      id: user.id,
-      username: user.username,
-      role: user.role,
-      maxUsage: user.maxUsage,
-      currentUsage: user.currentUsage,
-    },
-    jwtConfig.secret,
-    { expiresIn: "2h" }
-  );
-
-  // Réponse au frontend
-  res.json({
-    token,
-    user: {
-      id: user.id,
-      username: user.username,
-      role: user.role,
-      maxUsage: user.maxUsage,
-      currentUsage: user.currentUsage,
-    },
-  });
+  const token = jwt.sign(payload, jwtConfig.secret, jwtConfig.signOptions);
+  return res.json({ token, user: payload });
 });
 
 export default router;

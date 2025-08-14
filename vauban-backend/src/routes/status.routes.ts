@@ -7,10 +7,8 @@ router.get('/status', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const mistralConfigured = !!process.env.MISTRAL_API_KEY;
     res.json({
-      authenticated: !!req.user,
       mistralConfigured,
-      mistralModel: process.env.MISTRAL_MODEL || 'mistral-small',
-      timestamp: new Date()
+      model: process.env.MISTRAL_MODEL || null
     });
   } catch (error) {
     res.status(500).json({ error: 'Erreur lors de la vérification du statut' });
