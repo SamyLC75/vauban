@@ -93,10 +93,24 @@ export const DuerRepo = {
 
   // ✅ La méthode qu'il te manquait
   async delete(id: string) {
-    // Supprime les enfants d'abord pour respecter la contrainte FK
-    await prisma.$transaction([
-      prisma.duerVersion.deleteMany({ where: { duerId: id } }),
-      prisma.duer.delete({ where: { id } }),
-    ]);
+    await prisma.duerVersion.deleteMany({ where: { duerId: id } }).catch(() => {});
+    await prisma.duer.delete({ where: { id } });
+  },
+
+  // 🔹 Update the DUER and create a new version automatically
+  async update(id: string, doc: DuerDoc) {
+    const jsonEnc = encryptJson(doc);
+    // Increment the version and get the new value
+    const updated = await prisma.duer.update({
+      where: { id },
+      data: { jsonEnc, version: { increment: 1 } },
+      select: { id: true, version: true }
+    });
+
+    await prisma.duerVersion.create({
+      data: { duerId: id, version: updated.version!, jsonEnc }
+    });
+
+    return updated;
   },
 };

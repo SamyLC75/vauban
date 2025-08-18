@@ -1,4 +1,8 @@
-import 'dotenv/config';
+// src/app.ts
+import dotenv from 'dotenv';
+
+// Load environment variables after server creation but before CORS configuration
+dotenv.config();
 import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
@@ -17,10 +21,21 @@ import statusRoutes from "./routes/status.routes";
 
 const app = express();
 
-// Enable CORS (dynamic)
+// Enable CORS with whitelist from environment variables
+const ALLOWED_ORIGINS = (process.env.CLIENT_ORIGINS || process.env.CLIENT_URL || "http://localhost:3000,http://localhost:5173")
+  .split(",")
+  .map(s => s.trim());
+
 app.use(cors({
-  origin: (origin, cb) => cb(null, true), // à raffiner: liste blanche
-  credentials: true
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // Allow requests with no origin (like mobile apps or curl requests)
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    return cb(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  exposedHeaders: ["Set-Cookie"],
 }));
 
 // Parse JSON with limit

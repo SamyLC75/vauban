@@ -18,8 +18,8 @@ export const QuestionFlow: React.FC<{
   );
   return (
     <div className="space-y-4">
-      {visible.map(q => (
-        <div key={q.id} className="p-4 border rounded-lg">
+      {visible.map((q, idx) => (
+        <div key={`${q.id}-${idx}`} className="p-4 border rounded-lg">
           <p className="font-medium">{q.question}</p>
           {q.type === "oui_non" ? (
             <div className="mt-2 flex gap-4">

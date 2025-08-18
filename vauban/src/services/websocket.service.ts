@@ -6,7 +6,7 @@ class WebSocketService {
   private listeners: Map<string, Function[]> = new Map();
 
   connect(token: string) {
-    this.socket = io(process.env.REACT_APP_WS_URL || 'http://localhost:5000', {
+    this.socket = io(process.env.REACT_APP_WS_URL || 'http://localhost:5001', {
       auth: { token },
       transports: ['websocket', 'polling'],
     });

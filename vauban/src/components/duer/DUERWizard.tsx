@@ -1,7 +1,9 @@
 // src/components/duer/DUERWizard.tsx
 import React, { useEffect, useMemo, useState } from "react";
+import DUERView from "./DUERView";
 import { RiskMatrixEditor } from "../risks/RiskMatrixEditor";
 import { QuestionFlow, Question } from "../flow/QuestionFlow";
+import { Risk, UniteTravail, DuerDoc } from "../../types/duer.types";
 import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
@@ -12,91 +14,124 @@ import {
   CheckCircle2,
   AlertTriangle,
   X,
+  Trash2,
 } from "lucide-react";
 
 /** ---------- Types ---------- */
-interface DUERRisk {
-  id: string;
-  danger: string;
-  situation: string;
-  gravite: number;        // 1..4
-  probabilite: number;    // 1..4
-  priorite: number;       // typiquement gravite*probabilite
-  mesures_existantes: string[];
-  mesures_proposees: Array<{
-    type: "collective" | "individuelle" | string;
-    description: string;
-    delai?: "immédiat" | "court_terme" | "moyen_terme" | "long_terme" | string;
-    cout_estime?: string; // "€", "€€", ...
-    reference?: string;
-  }>;
-  suivi: {
-    responsable?: string;
-    echeance?: string;
-    indicateur?: string;
-  };
-}
-
-function normalizeDUERGenerateResponse(raw: unknown): { duerId?: string; doc: DUERDoc } {
-  // 1) si la réponse est une string JSON → parse
-  let res: any = raw;
-  if (typeof raw === 'string') {
-    try { res = JSON.parse(raw); } catch { /* on laissera échouer plus bas */ }
-  }
-
-  // 2) extraire le DUERDoc quelle que soit la forme
-  const maybe =
-    (res?.duer && res?.duer?.duer) || // {duer:{duer:{...}}}
-    res?.duer ||                       // {duer:{...}}
-    res?.document ||                   // (au cas où)
-    null;
-
-  if (!res?.success || !maybe) {
-    const keys = typeof res === 'object' && res ? Object.keys(res as any).join(',') : typeof res;
-    throw new Error(`Réponse inattendue (success/doc manquants). Clés: ${keys || 'n/a'}`);
-  }
-
-  return { duerId: res.duerId, doc: maybe as DUERDoc };
-}
-
-async function loadDUERById(id: string): Promise<DUERDoc> {
-  const data = await apiFetch<any>(`/api/duer/${id}`, { method: "GET" });
-  // le backend renvoie l'objet sauvegardé: soit { duer:{...}, id, ... } soit { ... } selon version
-  const doc = data?.duer?.duer || data?.duer || null;
-  if (!doc) throw new Error("DUER introuvable après génération");
-  return doc as DUERDoc;
-}
-
-interface DUERUnit {
-  nom: string;
-  risques: DUERRisk[];
-}
-
-interface DUERSynthese {
-  nb_risques_critiques: number;
-  nb_risques_importants: number;
-  nb_risques_moderes: number;
-  top_3_priorites: string[];
-  budget_prevention_estime: string;
-  conformite_reglementaire?: {
-    points_forts?: string[];
-    points_vigilance?: string[];
-  };
-}
-
-interface DUERDoc {
-  secteur: string;
-  date_generation: string;
-  unites: DUERUnit[];
-  synthese: DUERSynthese;
-}
-
 interface DUERGenerateResponse {
   success: boolean;
   duerId?: string;
   warning?: string;
-  duer?: { duer: DUERDoc } | DUERDoc; // on tolère les deux formes rencontrées
+  duer?: { duer: DuerDoc } | DuerDoc; // on tolère les deux formes rencontrées
   error?: string;
+}
+
+function normalizeDuer(doc: DuerDoc): DuerDoc {
+  return {
+    ...doc,
+    unites: doc.unites.map((u: UniteTravail, uIdx: number) => ({
+      ...u,
+      id: u.id ?? `U${uIdx}-${u.nom}`,
+      risques: u.risques.map((r: Risk, rIdx: number) => ({
+        ...r,
+        id: r.id ?? `R${uIdx}-${rIdx}-${r.danger}-${r.situation}`,
+      })),
+    })),
+  };
+}
+
+function nextQuestionId(existing: string[]) {
+  // génère Q1, Q2... en évitant collisions
+  let n = existing.length + 1;
+  let id = `Q${n}`;
+  while (existing.includes(id)) {
+    n += 1;
+    id = `Q${n}`;
+  }
+  return id;
+}
+
+function makeUniqueQuestions(existing: Question[], incoming: Question[]): Question[] {
+  const byText = new Set(existing.map(q => q.question.trim().toLowerCase()));
+  const ids = new Set(existing.map(q => q.id));
+  const result: Question[] = [];
+
+  for (const q of incoming) {
+    const textKey = q.question.trim().toLowerCase();
+    if (byText.has(textKey)) continue; // skip doublon texte
+
+    // id unique
+    let id = q.id?.trim() || "";
+    if (!id || ids.has(id)) {
+      id = nextQuestionId(Array.from(ids));
+    }
+    ids.add(id);
+    byText.add(textKey);
+
+    result.push({ ...q, id });
+  }
+  return result;
+}
+
+function mergeQuestions(existing: Question[], incoming: IAQuestion[]): Question[] {
+  const seen = new Set(existing.map(q => q.id));
+
+  const normalized = incoming.map((q) => {
+    // type sûr
+    const type: "oui_non" | "texte" =
+      q.type === "oui_non" || q.type === "texte" ? q.type : "texte";
+
+    // ID unique
+    let id = q.id || Math.random().toString(36).slice(2, 10);
+    while (seen.has(id)) id = `${q.id}-${Math.random().toString(36).slice(2, 6)}`;
+    seen.add(id);
+
+    return {
+      id,
+      question: q.question,
+      type,
+      showIf: q.showIf?.map(c => ({ qid: c.qid, equals: c.equals })),
+    } as Question;
+  });
+
+  return [...existing, ...normalized];
+}
+
+async function loadDUERById(id: string): Promise<DuerDoc> {
+  const data = await apiFetch<any>(`/api/duer/${id}`, { method: "GET" });
+  if (!data?.duer) throw new Error("Format de réponse inattendu");
+  // Normaliser la structure de la réponse (peut être {duer: DuerDoc} ou directement DuerDoc)
+  const doc = data.duer.duer || data.duer;
+  return normalizeDuer(doc);
+}
+
+// Helper pour les requêtes PATCH
+export async function patchDUER(id: string, ops: any[]) {
+  return apiFetch(`/api/duer/${id}/patch`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ ops }),
+  });
+}
+
+// Helper pour télécharger le CSV
+async function downloadCSV(duerId: string) {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}/api/duer/${duerId}/csv`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  });
+  if (!res.ok) throw new Error(`CSV: HTTP ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; 
+  a.download = `DUER_${duerId}.csv`;
+  document.body.appendChild(a); 
+  a.click(); 
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export type IAQuestion = {
@@ -113,10 +148,7 @@ interface IAQuestionsResponse {
 }
 
 /** ---------- Helpers ---------- */
-const API_BASE =
-  (import.meta as any).env?.VITE_REACT_APP_API_URL ||
-  process.env.REACT_APP_API_URL ||
-  "http://localhost:5000";
+const API_BASE = import.meta.env?.VITE_API_URL ?? "http://localhost:5001";
 
 function getToken(): string | null {
   // lit les deux clés pour tolérer les reliquats
@@ -172,34 +204,30 @@ function gravityLabel(level: number) {
 const DUERWizard: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [duer, setDuer] = useState<DUERGenerateResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
+  const [editMode, setEditMode] = useState(false);
 
-  const [formData, setFormData] = useState<{
-    sector: string;
-    size: "TPE" | "PME" | "ETI";
-    unites: string[];
-    historique: string;
-    contraintes: string;
-    reponses: Record<string, string>;
-    weightProb: number;
-    weightGrav: number;
-  }>({
+  const [formData, setFormData] = useState({
     sector: "",
-    size: "PME",
+    size: "TPE" as "TPE" | "PME" | "ETI",
     unites: [""],
-    historique: "",
-    contraintes: "",
-    reponses: {},
-    weightProb: 1.1,
-    weightGrav: 1.15,
+    historique: "",        // on garde pour compat (rempli au submit)
+    contraintes: "",      // on garde pour compat (rempli au submit)
+    reponses: {} as Record<string, any>,
+    weightProb: 1.0,  // Poids pour la probabilité
+    weightGrav: 1.1,  // Poids pour la gravité
   });
+  
+  const [histList, setHistList] = useState<string[]>([""]);
+  const [consList, setConsList] = useState<string[]>([""]);
 
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [generatedDUER, setGeneratedDUER] = useState<DUERDoc | null>(null);
+  const [generatedDUER, setGeneratedDUER] = useState<DuerDoc | null>(null);
   const [duerId, setDuerId] = useState<string | undefined>(undefined);
 
-  const [selectedRisk, setSelectedRisk] = useState<DUERRisk | null>(null);
+  const [selectedRisk, setSelectedRisk] = useState<Risk | null>(null);
   const [riskExplanation, setRiskExplanation] = useState<{
     resume_simple: string;
     statistiques?: string;
@@ -207,6 +235,43 @@ const DUERWizard: React.FC = () => {
     reference_principale?: string;
     conseil_pratique?: string;
   } | null>(null);
+
+
+
+  // Supprimer un risque
+  const handleDeleteRisk = async (unitId: string, riskId: string) => {
+    if (!duerId || !confirm('Êtes-vous sûr de vouloir supprimer ce risque ?')) {
+      return;
+    }
+    
+    try {
+      await patchDUER(duerId, [{
+        op: 'remove_risk',
+        unitId,
+        riskId
+      }]);
+      
+      // Mise à jour locale
+      if (generatedDUER) {
+        const updatedUnites = generatedDUER.unites.map(unit => {
+          if ((unit.id === unitId) || (unit.nom === unitId)) {
+            return {
+              ...unit,
+              risques: unit.risques.filter((r: Risk) => r.id !== riskId)
+            };
+          }
+          return unit;
+        });
+        
+        setGeneratedDUER({
+          ...generatedDUER,
+          unites: updatedUnites
+        });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la suppression du risque');
+    }
+  };
 
   // Vérif token (sans forcer un 0: login ici ; on suppose la page est protégée en amont)
   useEffect(() => {
@@ -217,6 +282,29 @@ const DUERWizard: React.FC = () => {
       );
     }
   }, []);
+
+  // Initialisation des listes à partir des données du formulaire
+  useEffect(() => {
+    if (formData.historique) {
+      const histItems = formData.historique
+        .split('\n')
+        .map(s => s.replace(/^-\s*/, '').trim())
+        .filter(Boolean);
+      if (histItems.length > 0) {
+        setHistList(histItems);
+      }
+    }
+    
+    if (formData.contraintes) {
+      const consItems = formData.contraintes
+        .split('\n')
+        .map(s => s.replace(/^-\s*/, '').trim())
+        .filter(Boolean);
+      if (consItems.length > 0) {
+        setConsList(consItems);
+      }
+    }
+  }, [formData.historique, formData.contraintes]);
 
   /** --------- Étape 1 : fetch questions IA --------- */
   const handleStep1Submit = async () => {
@@ -245,12 +333,25 @@ const DUERWizard: React.FC = () => {
         }
       );
 
+      // Formatage des listes pour l'envoi
+      const histString = histList.filter(s => s.trim()).map(s => `- ${s.trim()}`).join("\n");
+      const consString = consList.filter(s => s.trim()).map(s => `- ${s.trim()}`).join("\n");
+
+      // Mise à jour des champs de formulaire pour la compatibilité
+      setFormData(prev => ({
+        ...prev,
+        historique: histString,
+        contraintes: consString
+      }));
+
       const payload = {
         sector: formData.sector,
         size: formData.size,
         unites: filledUnits,
         weightProb: formData.weightProb,
         weightGrav: formData.weightGrav,
+        historique: histList.filter(s => s.trim()),
+        contraintes: consList.filter(s => s.trim()),
       };
 
       const data = await apiFetch<IAQuestionsResponse>(
@@ -274,7 +375,8 @@ const DUERWizard: React.FC = () => {
           })) 
         : [];
 
-      setQuestions(convertedQuestions);
+      // Utiliser makeUniqueQuestions pour éviter les doublons
+      setQuestions(prev => makeUniqueQuestions(prev, convertedQuestions));
       setStep(2);
     } catch (e: any) {
       setError(e?.message || "Erreur lors de la récupération des questions.");
@@ -309,13 +411,24 @@ const DUERWizard: React.FC = () => {
       setLoading(true);
 
       const filledUnits = formData.unites.map(u => u.trim()).filter(Boolean);
+      
+      // Formatage des listes pour l'envoi
+      const histString = histList.filter(s => s.trim()).map(s => `- ${s.trim()}`).join("\n");
+      const consString = consList.filter(s => s.trim()).map(s => `- ${s.trim()}`).join("\n");
+
+      // Mise à jour des champs de formulaire pour la compatibilité
+      setFormData(prev => ({
+        ...prev,
+        historique: histString,
+        contraintes: consString
+      }));
 
       const payload = {
         sector: formData.sector,
         size: formData.size,
         unites: filledUnits,
-        historique: formData.historique || "",
-        contraintes: formData.contraintes || "",
+        historique: histList.filter(s => s.trim()),
+        contraintes: consList.filter(s => s.trim()),
         reponses: formData.reponses || {},
         weightProb: formData.weightProb,
         weightGrav: formData.weightGrav,
@@ -331,11 +444,11 @@ const DUERWizard: React.FC = () => {
       // B) { success:true, duerId, duer:{duer:{...}} }    → direct (nested)
       // C) { duerId }                                     → on va chercher via GET /api/duer/:id
 
-      let doc: DUERDoc | null = null;
+      let doc: DuerDoc | null = null;
       let id: string | undefined = undefined;
 
       if (res?.success && (res?.duer || res?.duer?.duer)) {
-        doc = (res.duer?.duer || res.duer) as DUERDoc;
+        doc = (res.duer?.duer || res.duer) as DuerDoc;
         id = res.duerId;
       } else if (res?.duerId && !res?.duer) {
         // 👉 cas que tu viens d'avoir
@@ -359,7 +472,7 @@ const DUERWizard: React.FC = () => {
   };
 
   /** --------- Étape 4 : Explication d’un risque --------- */
-  const explainRisk = async (risk: DUERRisk) => {
+  const explainRisk = async (risk: Risk) => {
     try {
       setSelectedRisk(risk);
       setRiskExplanation(null);
@@ -447,6 +560,16 @@ const DUERWizard: React.FC = () => {
   };
 
   /** ---------- Rendu ---------- */
+  if (duer && duer.duer) {
+    const doc = 'duer' in duer.duer ? duer.duer.duer : duer.duer;
+    return (
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold mb-4">DUER Généré</h2>
+        <DUERView duerId={duer.duerId!} initialDoc={doc} />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="bg-white rounded-lg shadow-lg">
@@ -601,27 +724,82 @@ const DUERWizard: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Historique des accidents
-                </label>
-                <textarea
-                  value={formData.historique}
-                  onChange={(e) => setFormData({ ...formData, historique: e.target.value })}
-                  className="w-full border rounded px-3 py-2 h-32"
-                  placeholder="Décrivez les accidents survenus dans l'entreprise au cours des 5 dernières années..."
-                />
+                <label className="block text-sm font-medium mb-2">Historique des incidents/accidents</label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Un "accident" peut être physique, psychologique, matériel ou organisationnel (ex: interruption de service). Une ligne par élément.
+                </p>
+                <div className="space-y-2">
+                  {histList.map((v, i) => (
+                    <div key={i} className="flex gap-2">
+                      <input
+                        className="flex-1 border rounded px-3 py-2"
+                        placeholder="Ex: chute de chaise en cours d'arts plastiques"
+                        value={v}
+                        onChange={(e) => {
+                          const arr = [...histList]; 
+                          arr[i] = e.target.value; 
+                          setHistList(arr);
+                        }}
+                      />
+                      <button 
+                        type="button"
+                        className="text-red-600" 
+                        onClick={() => {
+                          const arr = [...histList]; 
+                          arr.splice(i, 1); 
+                          setHistList(arr.length ? arr : [""]);
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="text-blue-600 hover:text-blue-800"
+                    onClick={() => setHistList([...histList, ""])}
+                  >
+                    + Ajouter un élément
+                  </button>
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Contraintes spécifiques
-                </label>
-                <textarea
-                  value={formData.contraintes}
-                  onChange={(e) => setFormData({ ...formData, contraintes: e.target.value })}
-                  className="w-full border rounded px-3 py-2 h-32"
-                  placeholder="Mentionnez les contraintes spécifiques à votre entreprise (ex: site classé, activités saisonnières...)"
-                />
+                <label className="block text-sm font-medium mb-2">Contraintes spécifiques</label>
+                <div className="space-y-2">
+                  {consList.map((v, i) => (
+                    <div key={i} className="flex gap-2">
+                      <input
+                        className="flex-1 border rounded px-3 py-2"
+                        placeholder="Ex: salles inadaptées, subventions limitées à 6000h, ..."
+                        value={v}
+                        onChange={(e) => {
+                          const arr = [...consList]; 
+                          arr[i] = e.target.value; 
+                          setConsList(arr);
+                        }}
+                      />
+                      <button 
+                        type="button"
+                        className="text-red-600" 
+                        onClick={() => {
+                          const arr = [...consList]; 
+                          arr.splice(i, 1); 
+                          setConsList(arr.length ? arr : [""]);
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="text-blue-600 hover:text-blue-800"
+                    onClick={() => setConsList([...consList, ""])}
+                  >
+                    + Ajouter une contrainte
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -678,8 +856,8 @@ const DUERWizard: React.FC = () => {
                           qid: c.qid,
                           equals: c.equals
                         })) : undefined
-                      }));
-                      setQuestions([...questions, ...newQuestions]);
+                      })) || [];
+                      setQuestions(prev => makeUniqueQuestions(prev, newQuestions));
                     } catch (e: any) {
                       setError(e?.message || "Erreur lors de la récupération de nouvelles questions.");
                     } finally {
@@ -785,13 +963,24 @@ const DUERWizard: React.FC = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold">Votre DUER généré</h3>
-              <button
-                onClick={handleExportPDF}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-              >
-                <FileText className="w-4 h-4" />
-                Exporter PDF
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleExportPDF}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  Exporter PDF
+                </button>
+                {duerId && (
+                  <button
+                    onClick={() => downloadCSV(duerId)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Exporter CSV
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Synthèse */}
@@ -828,14 +1017,14 @@ const DUERWizard: React.FC = () => {
             </div>
 
             {/* Unités & risques */}
-            {generatedDUER.unites.map((unite) => (
-              <div key={unite.nom} className="mb-6">
+            {generatedDUER.unites.map((unite: UniteTravail, uniteIdx: number) => (
+              <div key={unite.id || `unite-${uniteIdx}-${unite.nom}`} className="mb-6">
                 <h4 className="font-semibold mb-3 text-lg">{unite.nom}</h4>
 
                 <div className="space-y-3">
-                  {unite.risques.map((risque) => (
+                  {unite.risques.map((risque: Risk, risqueIdx: number) => (
                     <div
-                      key={risque.id}
+                      key={risque.id || `${unite.id || `unite-${uniteIdx}-${unite.nom}`}-risque-${risqueIdx}-${risque.danger}-${risque.situation}`}
                       className="border rounded-lg p-4 hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-start justify-between">
@@ -884,7 +1073,7 @@ const DUERWizard: React.FC = () => {
                               </p>
                               <ul className="text-sm text-gray-600 list-disc list-inside">
                                 {risque.mesures_proposees.map((m, idx) => (
-                                  <li key={idx}>
+                                  <li key={`${risque.id}-${idx}-${m.description}`}>
                                     {m.description}
                                     {m.cout_estime ? ` (${m.cout_estime})` : ""}
                                   </li>
@@ -894,13 +1083,80 @@ const DUERWizard: React.FC = () => {
                           )}
                         </div>
 
-                        <button
-                          onClick={() => explainRisk(risque)}
-                          className="ml-4 p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                          title="Obtenir plus d'informations"
-                        >
-                          <HelpCircle className="w-5 h-5" />
-                        </button>
+                        <div className="ml-4 flex flex-col items-end gap-2">
+                          <button
+                            onClick={() => explainRisk(risque)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                            title="Obtenir plus d'informations"
+                          >
+                            <HelpCircle className="w-5 h-5" />
+                          </button>
+
+                          {duerId && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleDeleteRisk(
+                                  (unite as any).id || unite.nom,
+                                  (risque as any).id || `${unite.nom}-${risque.danger}-${risque.situation}`
+                                )}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                title="Supprimer ce risque"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                              <details className="w-56">
+                                <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-800">
+                                  Modifier
+                                </summary>
+                                <div className="mt-2 p-2 border rounded-lg bg-gray-50">
+                                  <label className="block text-xs text-gray-600">Gravité (1..4)</label>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={4}
+                                    defaultValue={risque.gravite}
+                                    className="w-full border rounded px-2 py-1 text-sm mb-2"
+                                    onChange={(e) => (risque.gravite = Number(e.target.value))}
+                                  />
+                                  <label className="block text-xs text-gray-600">Probabilité (1..4)</label>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={4}
+                                    defaultValue={risque.probabilite}
+                                    className="w-full border rounded px-2 py-1 text-sm mb-2"
+                                    onChange={(e) => (risque.probabilite = Number(e.target.value))}
+                                  />
+                                  <button
+                                    className="w-full px-2 py-1 bg-blue-600 text-white rounded text-sm"
+                                    onClick={async () => {
+                                      try {
+                                        await patchDUER(duerId!, [{
+                                          op: 'edit_risk',
+                                          unitId: (unite as any).id || unite.nom,
+                                          riskId: (risque as any).id || `${unite.nom}-${risque.danger}-${risque.situation}`,
+                                          data: { 
+                                            gravite: risque.gravite, 
+                                            probabilite: risque.probabilite 
+                                          }
+                                        }]);
+                                        // Mise à jour locale (recalcul priorité)
+                                        const g = Number(risque.gravite) || 1;
+                                        const p = Number(risque.probabilite) || 1;
+                                        risque.priorite = g * p;
+                                        setGeneratedDUER({ ...generatedDUER! });
+                                      } catch (e: any) {
+                                        setError(e?.message || "Échec de la mise à jour");
+                                      }
+                                    }}
+                                  >
+                                    Enregistrer
+                                  </button>
+                                </div>
+                              </details>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
