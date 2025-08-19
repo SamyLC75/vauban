@@ -1,0 +1,83 @@
+# 🌟 Registre ouvert des catégories de risques (seed)
+categories:
+  physique:
+    aliases: ["physical", "traumatisme", "lésion"]
+    duer_relevance: "direct"
+    keywords: ["chute", "coupure", "brulure", "ecrasement", "collision"]
+
+  chimique:
+    aliases: ["chemical", "toxique"]
+    duer_relevance: "direct"
+    keywords: ["solvant", "acide", "vapeur", "gaz", "cmr", "allergene"]
+
+  biologique:
+    aliases: ["biological", "infectieux"]
+    duer_relevance: "direct"
+    keywords: ["virus", "bacterie", "champignon", "allergie", "infection"]
+
+  psychosocial:
+    aliases: ["rps", "stress"]
+    duer_relevance: "direct"
+    keywords: ["harcelement", "surcharge", "isolement", "conflit", "burnout"]
+
+  organisationnel:
+    aliases: ["management", "procedural"]
+    duer_relevance: "direct"
+    keywords: ["formation", "procedure", "planning", "communication"]
+
+  environnemental:
+    aliases: ["ambiance", "conditions"]
+    duer_relevance: "direct"
+    keywords: ["temperature", "humidite", "luminosite", "ventilation"]
+
+  mecanique:
+    aliases: ["machine", "equipement"]
+    duer_relevance: "direct"
+    keywords: ["machine", "outil", "vehicule", "maintenance"]
+
+  electrique:
+    aliases: ["electricite"]
+    duer_relevance: "direct"
+    keywords: ["electrocution", "court_circuit", "cablage"]
+
+  incendie_explosion:
+    aliases: ["incendie", "explosion", "feu"]
+    duer_relevance: "direct"
+    keywords: ["flamme", "inflammable", "fumee", "evacuation"]
+
+  rayonnements:
+    aliases: ["radiation", "radioprotection"]
+    duer_relevance: "direct"
+    keywords: ["laser", "uv", "radioactivite", "micro_ondes"]
+
+  # Étendus / émergents
+  cybersecurite:
+    parent: "organisationnel"
+    aliases: ["cyber", "cybersecurite", "cybersecurité", "numerique", "informatique"]
+    duer_relevance: "indirect"
+    keywords: ["phishing", "ransomware", "piratage", "donnees", "intrusion", "authentification"]
+
+  climat:
+    parent: "environnemental"
+    duer_relevance: "indirect"
+    keywords: ["canicule", "inondation", "tempete", "secheresse"]
+
+  transport:
+    parent: "mecanique"
+    duer_relevance: "direct"
+    keywords: ["accident", "route", "livraison", "vehicule"]
+
+  travail_isole:
+    parent: "organisationnel"
+    duer_relevance: "direct"
+    keywords: ["seul", "isole", "secours", "surveillance"]
+
+  ergonomie:
+    parent: "physique"
+    duer_relevance: "direct"
+    keywords: ["posture", "repetitif", "manutention", "ecran"]
+
+  bruit:
+    parent: "environnemental"
+    duer_relevance: "direct"
+    keywords: ["decibel", "protection", "acouphene", "machine"]

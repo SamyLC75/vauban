@@ -240,7 +240,7 @@ const DUERWizard: React.FC = () => {
 
   // Supprimer un risque
   const handleDeleteRisk = async (unitId: string, riskId: string) => {
-    if (!duerId || !confirm('Êtes-vous sûr de vouloir supprimer ce risque ?')) {
+    if (!duerId || !window.confirm('Êtes-vous sûr de vouloir supprimer ce risque ?')) {
       return;
     }
     
@@ -355,7 +355,7 @@ const DUERWizard: React.FC = () => {
       };
 
       const data = await apiFetch<IAQuestionsResponse>(
-        "/api/duer/ia-questions",
+        "/api/duer/ia-questions-dynamic",
         {
           method: "POST",
           body: JSON.stringify(payload),
@@ -839,10 +839,12 @@ const DUERWizard: React.FC = () => {
                         sector: formData.sector,
                         size: formData.size,
                         unites: formData.unites,
-                        reponses: formData.reponses
+                        reponses: formData.reponses,
+                        historique: histList.filter(s => s.trim()),
+                        contraintes: consList.filter(s => s.trim()),
                       };
                       const data = await apiFetch<IAQuestionsResponse>(
-                        "/api/duer/ia-questions",
+                        "/api/duer/ia-questions-dynamic",
                         {
                           method: "POST",
                           body: JSON.stringify(payload),

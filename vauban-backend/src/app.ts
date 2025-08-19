@@ -18,6 +18,7 @@ import duerRoutes from "./routes/duer.routes";
 import engineRoutes from "./routes/engine.routes";
 // ...autres imports
 import statusRoutes from "./routes/status.routes";
+import duerDynamicRoutes from "./routes/duer-dynamic.routes";
 
 const app = express();
 
@@ -53,7 +54,6 @@ app.use((req: AuthRequest, res, next) => {
   if (req.path === '/health') return next();
   if (req.path === '/api/testproxy') return next();
   if (req.path === '/api/status') return next();
-  if (req.path === '/api/duer/ia-questions') return next();
   return authMiddleware(req, res, next);
 });
 
@@ -67,6 +67,7 @@ app.use("/api", teamRoutes);
 app.use("/api", crisisRoutes);
 app.use("/api", entrepriseRoutes);
 app.use("/api", duerRoutes);
+app.use("/api", duerDynamicRoutes);
 app.use("/api", engineRoutes);
 
 // Error handling middleware
