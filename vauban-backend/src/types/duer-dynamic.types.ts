@@ -1,3 +1,4 @@
+// src/types/duer-dynamic.types.ts
 export type CategorySpec = string | string[];
 
 export interface EnhancedQuestion {
@@ -8,6 +9,9 @@ export interface EnhancedQuestion {
   priority: number;                  // 1..10
   source_ids: string[];
   context: { sector: string; unit_type?: string; relevance?: "direct"|"indirect"|"hors_champ" };
+  // Nouveau (optionnel, rétrocompatible)
+  importance?: "urgent" | "important" | "complementaire";
+  gap_reason?: string; // courte justification: quelle incertitude réduit cette question ?
 }
 
 export interface EnhancedGenerationContext {
@@ -21,6 +25,12 @@ export interface EnhancedGenerationContext {
 
 export interface EnhancedQuestionsResponse {
   questions: EnhancedQuestion[];
+  // file d'attente locale pour éviter un 2e appel IA
+  queue?: {
+    complementary: EnhancedQuestion[];
+  };
+  // estimation IA du nombre de questions importantes qu'il resterait à poser
+  remaining_important_estimate?: number;
   metadata: {
     evidence_sources: string[];
     confidence_score: number;     // 0..1

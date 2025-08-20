@@ -26,7 +26,11 @@ router.use(authMiddleware);
 router.post("/duer/ia-questions", generateQuestions);
 
 // Génération complète du DUER + persistance
-router.post("/duer/ia-generate", generateDUER);
+router.post("/duer/ia-generate", (req, res, next) => {
+  // Garde le socket ouvert jusqu'à 120s pour cette route
+  res.setTimeout(120000);
+  next();
+}, generateDUER);
 
 // Récupération d'un DUER existant
 router.get("/duer/:id", getDUER);

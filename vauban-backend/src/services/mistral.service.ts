@@ -98,12 +98,13 @@ export class MistralService {
         requestBody.response_format = { type: 'json_object' };
       }
 
-      console.log('🌐 URL:', this.endpoint);
-      console.log('🔑 Headers:', {
+      console.log(' URL:', this.endpoint);
+      console.log(' Headers:', {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.apiKey.substring(0, 8)}...`
       });
 
+      const mistralTimeout = Number(process.env.MISTRAL_TIMEOUT_MS ?? 45000);
       const response = await axios.post(
         this.endpoint,
         requestBody,
@@ -112,11 +113,12 @@ export class MistralService {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${this.apiKey}`,
           },
-          timeout: 30000 // 30 secondes timeout
+          timeout: mistralTimeout, // timeout configurable
+          timeoutErrorMessage: 'Mistral timeout'
         }
       );
 
-      console.log('✅ Réponse Mistral reçue:', response.status);
+      console.log(' Réponse Mistral reçue:', response.status);
       
       const mistralResponse = response.data as MistralResponse;
       

@@ -7,7 +7,7 @@ export class DUERPromptsService {
    * Format strict JSON avec types limités à oui_non et texte
    */
   getQuestionsPrompt(sector: string, size: string): string {
-    return `En tant qu'expert DUER, pose 3-5 questions ESSENTIELLES pour affiner l'évaluation des risques d'une ${size} du secteur ${sector}.
+    return `Tu es un expert DUER certifié CARSAT, pose 5-8 questions ESSENTIELLES (non redondantes) pour une ${size} du secteur ${sector}.
 
 Format JSON strict:
 {
@@ -15,7 +15,7 @@ Format JSON strict:
     {
       "id": "Q1",
       "question": "Question claire et directe",
-      "type": "oui_non|texte",
+      "type": "oui_non|texte|choix_multiple|scale_1_5",
       "justification": "Pourquoi cette info est cruciale",
       "impact": "Ce que ça change dans le DUER"
     }
@@ -25,7 +25,8 @@ Format JSON strict:
 Contraintes:
 - UNIQUEMENT le JSON (pas de texte autour, pas de \`\`\`json).
 - id unique (Q1, Q2, ...).
-- type ∈ { "oui_non", "texte" } (pas d'autres types).`;
+- type ∈ { "oui_non", "texte", "choix_multiple", "scale_1_5" } (pas d'autres types).
+- Préférer échelles/choix multiples si plus informatifs.`;
   }
 
 
@@ -42,7 +43,8 @@ Contraintes:
   }): string {
     const contexteSectoriel = this.getContexteSectoriel(context.sector);
     
-    return `Tu es un expert en prévention des risques professionnels et en rédaction de DUER selon la réglementation française.
+    return `Tu es un expert en prévention des risques professionnels et en rédaction de DUER selon la réglementation française (CARSAT Prév.317).
+
 
 CONTEXTE ENTREPRISE (ANONYMISÉ):
 - Secteur d'activité: ${context.sector}
@@ -61,9 +63,10 @@ RÈGLES CRITIQUES:
 1. Les risques doivent être SPÉCIFIQUES à chaque unité de travail (PAS de copier-coller)
 2. Pour une boulangerie: pense aux fours, farines, charges lourdes, horaires décalés, etc.
 3. Pour chaque unité, identifie les risques RÉELS du métier
-4. Priorise selon gravité ET probabilité (score = gravité × probabilité)
-5. Mesures concrètes et applicables en PME avec coûts réalistes
-6. Cite les références réglementaires pertinentes
+4. Priorise selon gravité ET probabilité (priorité = gravité × probabilité, nombre)
+5. Conformité CARSAT: pense Probabilité FA/MO/FO et Gravité Mortel/DR/DI (la traduction en libellés est faite côté serveur)
+6. Mesures concrètes et applicables avec coûts réalistes (€, €€, €€€ ou plage)
+7. Cite les références réglementaires pertinentes
 
 FORMAT DE SORTIE OBLIGATOIRE (JSON STRICT):
 {

@@ -24,7 +24,7 @@ export class DefaultAIProvider implements AIProvider {
 
   constructor() {
     this.mistralKey = process.env.MISTRAL_API_KEY || "";
-    this.mistralModel = process.env.MISTRAL_MODEL || "mistral-small-latest";
+    this.mistralModel = process.env.MISTRAL_MODEL || "mistral-large-latest";
     if (!this.mistralKey) {
       throw new Error("MISTRAL_API_KEY manquant");
     }

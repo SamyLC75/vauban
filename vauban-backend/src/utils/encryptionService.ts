@@ -1,3 +1,4 @@
+// src/utils/encryptionService.ts
 import CryptoJS from "crypto-js";
 
 const DEFAULT_KEY = process.env.REACT_APP_ENCRYPTION_KEY || "Zddhsks435xs_z"; // à surcharger en prod

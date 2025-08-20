@@ -2,7 +2,8 @@ import { Request, Response } from "express";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { DuerSchema, DuerDoc } from "../schemas/duer.schema";
 import { DuerEngine } from "../services/duer.engine";
-import { normalizeDuerDoc, flattenDuer } from "../services/duer-normalize.service";
+import { normalizeDuerDoc, flattenDuer, sanitizeDuerCandidate } from "../services/duer-normalize.service";
+import { enhanceWithOrgRisks } from "../services/duer-enhance.service";
 import { MistralProvider } from "../services/mistral.provider";
 import { DuerRepo } from "../repositories/duer.repo";
 import { renderDuerPdf } from "../services/pdf.service";
@@ -10,6 +11,8 @@ import { DUERPromptsService } from "../services/duer-prompts.service"; // pour i
 import { SizeClass } from ".prisma/client";
 import { prisma } from "../services/prisma";
 import { encryptJson, decryptJson } from "../services/crypto.service";
+import { enforceConformiteSynthese, probToLabel, gravToLabel, calculerHierarchie } from "../utils/carsat";
+import { computeBudgetFromDoc } from "../utils/budget";
 
 /* ============================
  * PUT /api/duer/:id
@@ -57,7 +60,18 @@ export const generateQuestions = async (req: AuthRequest, res: Response) => {
  * POST /api/duer/ia-generate
  * ============================ */
 export const generateDUER = async (req: AuthRequest, res: Response) => {
+  const t0 = Date.now();
+  const reqId = `duer-${Math.random().toString(36).slice(2,8)}`;
+  
   try {
+    console.log(`[${reqId}] /ia-generate start`);
+    
+    // Extend request/response timeouts
+    try {
+      (req as any).setTimeout?.(120000);
+      (res as any).setTimeout?.(120000);
+    } catch {}
+    
     const { sector, size, unites, historique, contraintes, reponses, orgCode } = req.body as {
       sector: string;
       size: "TPE" | "PME" | "ETI";
@@ -67,13 +81,49 @@ export const generateDUER = async (req: AuthRequest, res: Response) => {
       reponses?: Record<string, any>;
       orgCode?: string;
     };
-    if (!sector || !size || !Array.isArray(unites) || !unites.length)
-      return res.status(400).json({ error: "Données insuffisantes. Secteur, taille et unités requis." });
+    
+    if (!sector || !size || !Array.isArray(unites) || !unites.length) {
+      return res.status(400).json({ 
+        error: "INVALID_INPUT", 
+        message: "Données insuffisantes. Secteur, taille et unités requis." 
+      });
+    }
 
+    // Generate DUER document
     const docRaw = await engine.generateDUER({ sector, size, unites, historique, contraintes, reponses });
-    // validation et normalisation
-    const doc = normalizeDuerDoc(DuerSchema.parse(docRaw));
+    
+    // Sanitize and validate the document
+    let doc;
+    try {
+      // First sanitize the AI-generated content, then enhance with organizational risks
+      const sanitized = sanitizeDuerCandidate(docRaw);
+      const enhanced = enhanceWithOrgRisks(reponses || {}, sanitized, { 
+        budgetSerre: !!req.body?.budgetSerre 
+      });
+      // Then normalize and validate
+      doc = enforceConformiteSynthese(normalizeDuerDoc(enhanced));
+      console.log(`[${reqId}] Document enhanced, sanitized and validated successfully`);
+    } catch (e: any) {
+      console.warn(`[${reqId}] Document validation failed`, e?.issues?.slice(0, 5) || e);
+      return res.status(502).json({
+        error: "DUER_INVALID",
+        message: "Le document généré ne respecte pas le schéma DUER.",
+        issues: e?.issues?.slice(0, 8) || [String(e?.message || e)]
+      });
+    }
+    
+    // Calculate and set budget if not present
+    try {
+      const calc = computeBudgetFromDoc(doc);
+      if (!doc?.synthese?.budget_prevention_estime || doc.synthese.budget_prevention_estime === "—") {
+        doc.synthese.budget_prevention_estime = calc;
+      }
+    } catch (e) {
+      console.warn(`[${reqId}] Budget calculation failed`, String(e));
+      // Non-blocking error
+    }
 
+    // Save to database
     const created = await DuerRepo.create({
       orgId: getReqOrgId(req),
       ownerId: getReqUserId(req),
@@ -82,10 +132,28 @@ export const generateDUER = async (req: AuthRequest, res: Response) => {
       doc,
     });
 
+    console.log(`[${reqId}] /ia-generate ok in ${Date.now()-t0}ms`);
     return res.status(200).json({ success: true, duerId: created.id, duer: { duer: doc } });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Erreur inconnue";
-    return res.status(500).json({ error: "Erreur lors de la génération du DUER", message: msg });
+  } catch (e: any) {
+    const msg = String(e?.message || e);
+    const isTimeout = /timeout|ETIMEDOUT|ECONNABORTED/i.test(msg);
+    const upstreamStatus = e?.response?.status;
+    const upstreamData = e?.response?.data;
+    
+    console.error(`[${reqId}] /ia-generate error`, { 
+      msg, 
+      upstreamStatus, 
+      took: Date.now()-t0,
+      stack: e?.stack
+    });
+
+    const status = isTimeout ? 504 : (upstreamStatus ? 502 : 500);
+    return res.status(status).json({
+      error: isTimeout ? "UPSTREAM_TIMEOUT" : (upstreamStatus ? "UPSTREAM_ERROR" : "SERVER_ERROR"),
+      message: msg,
+      upstreamStatus,
+      upstreamData: process.env.DUER_DEBUG === '1' ? upstreamData : undefined
+    });
   }
 };
 
@@ -95,7 +163,14 @@ export const generateDUER = async (req: AuthRequest, res: Response) => {
 export const getDUER = async (req: AuthRequest, res: Response) => {
   const row = await DuerRepo.getOne(req.params.id);
   if (!row || row.orgId !== getReqOrgId(req)) return res.status(404).json({ error: "DUER non trouvé" });
-  return res.status(200).json({ id: row.id, orgId: row.orgId, ownerId: row.ownerId, duer: { duer: row.doc } });
+  const doc = enforceConformiteSynthese(normalizeDuerDoc(row.doc));
+  try {
+    const calc = computeBudgetFromDoc(doc);
+    if (!doc?.synthese?.budget_prevention_estime || doc.synthese.budget_prevention_estime === "—") {
+      doc.synthese.budget_prevention_estime = calc;
+    }
+  } catch { /* non bloquant */ }
+  return res.status(200).json({ id: row.id, orgId: row.orgId, ownerId: row.ownerId, duer: { duer: doc } });
 };
 
 /* ============================
@@ -175,8 +250,7 @@ export const generateDUERPdf = async (req: Request, res: Response) => {
 export const getDUERFlat = async (req: AuthRequest, res: Response) => {
   const row = await DuerRepo.getOne(req.params.id);
   if (!row || row.orgId !== req.user!.orgId) return res.status(404).json({ error: "DUER non trouvé" });
-
-  const doc = normalizeDuerDoc(row.doc);
+  const doc = enforceConformiteSynthese(normalizeDuerDoc(row.doc));
   const rows = flattenDuer(doc);
   return res.status(200).json({ rows });
 };
@@ -194,7 +268,8 @@ export const exportDUERCsv = async (req: AuthRequest, res: Response) => {
   // CSV (sans dépendance)
   const header = [
     "unitId","unitName","riskId","danger","situation",
-    "gravite","probabilite","priorite",
+    "gravite","grav_label","probabilite","prob_label","hierarchie",
+    "priorite",
     "mesures_existantes","mesures_proposees","suivi_responsable","suivi_echeance","suivi_indicateur"
   ];
   
@@ -205,15 +280,21 @@ export const exportDUERCsv = async (req: AuthRequest, res: Response) => {
     return `"${cleaned}"`;
   };
 
-  const lines = rows.map(r => [
-    r.unitId, r.unitName, r.riskId, r.danger, r.situation,
-    r.gravite, r.probabilite, r.priorite,
-    (r.mesures_existantes || []).join(" • "),
-    (r.mesures_proposees || []).map((m: any) => m?.description).filter(Boolean).join(" • "),
-    r.suivi?.responsable || "",
-    r.suivi?.echeance || "",
-    r.suivi?.indicateur || ""
-  ].map(escape).join(","));
+  const lines = rows.map(r => {
+    const probL = probToLabel(Number(r.probabilite));
+    const gravL = gravToLabel(Number(r.gravite));
+    const h = calculerHierarchie(probL, gravL);
+    return [
+      r.unitId, r.unitName, r.riskId, r.danger, r.situation,
+      r.gravite, gravL, r.probabilite, probL, h,
+      r.priorite,
+      (r.mesures_existantes || []).join(" • "),
+      (r.mesures_proposees || []).map((m: any) => m?.description).filter(Boolean).join(" • "),
+      r.suivi?.responsable || "",
+      r.suivi?.echeance || "",
+      r.suivi?.indicateur || ""
+    ].map(escape).join(",");
+  });
 
   const csv = [header.join(","), ...lines].join("\n");
 

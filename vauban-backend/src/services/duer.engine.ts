@@ -7,7 +7,7 @@ type QuestionsResponse = {
   questions: Array<{
     id: string;
     question: string;
-    type: "oui_non" | "texte";
+    type: "oui_non" | "texte" | "choix_multiple" | "scale_1_5";
     justification?: string;
     impact?: string;
   }>;
@@ -19,10 +19,15 @@ export class DuerEngine {
   buildQuestionsPrompt(sector: string, size: "TPE" | "PME" | "ETI") {
     const bm = SizeBenchmarks[size];
     return `
-En tant qu'expert DUER, génère 4-6 questions ESSENTIELLES pour une ${size} (budget repère ${bm.avgBudget}) du secteur ${sector}.
+Tu es un expert DUER certifié CARSAT.
+Génère 5 à 8 questions ESSENTIELLES (non redondantes) pour une ${size} (budget repère ${bm.avgBudget}) du secteur ${sector}.
+Règles:
+- Types autorisés: "oui_non" | "texte" | "choix_multiple" | "scale_1_5"
+- Évite les oui/non triviaux si une échelle ou un choix multiple est plus informatif
+- Chaque question réduit une incertitude concrète (ex: fréquence, exposition, EPI, procédures)
 Format JSON STRICT:
-{"questions":[{"id":"Q1","question":"...","type":"oui_non|texte","justification":"...","impact":"..."}]}
-UNIQUEMENT le JSON.`;
+{"questions":[{"id":"Q1","question":"...","type":"oui_non|texte|choix_multiple|scale_1_5","justification":"...","impact":"..."}]}
+Réponds UNIQUEMENT par le JSON.`;
   }
 
   buildGeneratePrompt(params: {
@@ -46,17 +51,18 @@ Pondération scoring: priorite = round(gravite*${bm.weightGrav} * probabilite*${
 Top risques taille ${params.size}: ${bm.topRisks.join(", ")}.`.trim();
 
     return `
-Tu es expert DUER. Retourne un JSON strict au format DuerDoc.
+Tu es expert DUER CERTIFIÉ CARSAT. Retourne un JSON STRICT au format DuerDoc (schéma imposé ci-dessous).
 
 Contexte:
 ${context}
 
 Règles:
-1) Risques spécifiques par unité (pas de doublons génériques).
-2) Donne gravité et probabilité 1..4, calcule "priorite".
-3) Mesures réalistes selon budget repère (${bm.avgBudget}), classées (collective, individuelle, formation).
-4) Références: cite Code du travail/INRS pertinentes si connues.
-5) "synthese" doit contenir les compteurs et "budget_prevention_estime".
+1) Risques SPÉCIFIQUES par unité (pas de copier-coller entre unités). "situation" = qui/quoi/où/quand.
+2) Évalue "gravite" et "probabilite" sur 1..4. Calcule "priorite" = gravite × probabilite (nombre).
+3) Conformité CARSAT: raisonne avec Probabilité FA/MO/FO et Gravité Mortel/DReversible/DIrreversible pour la hiérarchie ➊➋➌, mais NE SORS QUE des nombres 1..4 + priorite (le serveur traduira les libellés).
+4) Plan d'actions STRUCTURÉ: "mesures_proposees" avec type ∈ {collective, individuelle, formation}, delai, cout_estime (€, €€, €€€ ou plage), reference.
+5) Mesures RÉALISTES vs budget repère (${bm.avgBudget}), évite le hors-sujet.
+6) "synthese" cohérente: compteurs, top_3_priorites, budget_prevention_estime (intervalle).
 
 FORMAT DE SORTIE (JSON STRICT) — UNIQUEMENT le JSON, pas de texte autour:
 {
@@ -111,7 +117,28 @@ FORMAT DE SORTIE (JSON STRICT) — UNIQUEMENT le JSON, pas de texte autour:
   async generateQuestions(sector: string, size: "TPE" | "PME" | "ETI") {
     const prompt = this.buildQuestionsPrompt(sector, size);
     const resp = await this.ai.chatJSON<QuestionsResponse>(prompt, 'Tu réponds en JSON strict.');
-    return Array.isArray(resp?.questions) ? resp.questions : [];
+    const raw = Array.isArray(resp?.questions) ? resp.questions : [];
+    // Normalisation et dédoublonnage
+    const allowed = new Set(["oui_non","texte","choix_multiple","scale_1_5"]);
+    const seen = new Set<string>();
+    const out: QuestionsResponse["questions"] = [] as any;
+    for (const q of raw) {
+      const text = (q?.question || "").trim();
+      if (!text) continue;
+      const key = text.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const type = (q?.type && allowed.has(q.type)) ? q.type : "texte";
+      out.push({
+        id: `Q${out.length+1}`,
+        question: text,
+        type: type as any,
+        justification: q.justification,
+        impact: q.impact,
+      });
+      if (out.length >= 8) break;
+    }
+    return out;
   }
 
   async generateDUER(input: {

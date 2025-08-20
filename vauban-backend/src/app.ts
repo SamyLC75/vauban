@@ -16,7 +16,7 @@ import crisisRoutes from "./routes/crisis.routes";
 import entrepriseRoutes from "./routes/entreprise.routes";
 import duerRoutes from "./routes/duer.routes";
 import engineRoutes from "./routes/engine.routes";
-// ...autres imports
+import diagnosticRoutes from "./routes/diagnostic.routes";
 import statusRoutes from "./routes/status.routes";
 import duerDynamicRoutes from "./routes/duer-dynamic.routes";
 
@@ -69,16 +69,31 @@ app.use("/api", entrepriseRoutes);
 app.use("/api", duerRoutes);
 app.use("/api", duerDynamicRoutes);
 app.use("/api", engineRoutes);
+app.use("/api/diag", diagnosticRoutes);
 
 // Error handling middleware
 app.use((err: any, _req: any, res: any, _next: any) => {
-  console.error(err);
-  res.status(500).json({ error: "Erreur serveur", message: err?.message || "unknown" });
+  const isDev = process.env.NODE_ENV !== 'production';
+  const body = {
+    error: "SERVER_ERROR",
+    message: String(err?.message || 'unknown'),
+    code: err?.code || undefined,
+    cause: err?.cause || undefined,
+  };
+  // log côté serveur avec stack si dispo
+  console.error('[DUER] Uncaught error:', {
+    message: body.message, code: body.code, cause: body.cause, stack: err?.stack
+  });
+  // en dev, retourne des infos utiles au front
+  if (isDev || process.env.DUER_DEBUG === '1') {
+    (body as any).stack = err?.stack;
+  }
+  res.status(err?.statusCode || 500).json(body);
 });
 
-// Health check
+// Health check - now handled by diagnostic controller
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date() });
+  res.redirect('/api/diag/health');
 });
 
 // 404 handler
