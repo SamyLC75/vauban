@@ -5,6 +5,11 @@ export type Risk = {
   gravite: number;
   probabilite: number;
   priorite: number;
+  maitrise?: "AUCUNE" | "PARTIELLE" | "BONNE" | "TRES_BONNE";
+  risque_net?: number;
+  applicable?: boolean;
+  effectifs_concernes?: number | null;
+  penibilite?: boolean | null;
   mesures_existantes: string[];
   mesures_proposees: {
     type: string;
@@ -17,6 +22,8 @@ export type Risk = {
     responsable?: string;
     echeance?: string;
     indicateur?: string;
+    date_decision?: string;
+    realise_le?: string;
   };
 };
 

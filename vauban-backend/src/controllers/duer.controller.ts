@@ -3,16 +3,26 @@ import { AuthRequest } from "../middleware/auth.middleware";
 import { DuerSchema, DuerDoc } from "../schemas/duer.schema";
 import { DuerEngine } from "../services/duer.engine";
 import { normalizeDuerDoc, flattenDuer, sanitizeDuerCandidate } from "../services/duer-normalize.service";
-import { enhanceWithOrgRisks } from "../services/duer-enhance.service";
+import { 
+  enhanceWithOrgRisks, 
+  filterRisksInScope,
+  applyAnswersToDoc, 
+  recomputePriorities,
+  smartifyMeasures 
+} from "../services/duer-enhance.service";
 import { MistralProvider } from "../services/mistral.provider";
 import { DuerRepo } from "../repositories/duer.repo";
 import { renderDuerPdf } from "../services/pdf.service";
 import { DUERPromptsService } from "../services/duer-prompts.service"; // pour ia-explain
+import { DuerDynamicService } from "../services/duer-dynamic.service";
+import { DuerSuggestService } from "../services/duer-suggest.service";
+import { DuerAuditService } from "../services/duer-audit.service";
 import { SizeClass } from ".prisma/client";
 import { prisma } from "../services/prisma";
 import { encryptJson, decryptJson } from "../services/crypto.service";
-import { enforceConformiteSynthese, probToLabel, gravToLabel, calculerHierarchie } from "../utils/carsat";
-import { computeBudgetFromDoc } from "../utils/budget";
+import { enforceConformiteSynthese, probToLabel, gravToLabel, calculerHierarchie, computeBudgetFromDoc } from "../utils/carsat";
+import { SlotFillingService, SlotNextInput } from "../services/slot-filling.service";
+import { DefaultAIProvider } from "../services/ai.provider";
 
 /* ============================
  * PUT /api/duer/:id
@@ -34,12 +44,121 @@ export const saveDUER = async (req: AuthRequest, res: Response) => {
 
 const engine = new DuerEngine(new MistralProvider());
 const prompts = new DUERPromptsService();
+const dynamicService = new DuerDynamicService(new MistralProvider());
+const suggestService = new DuerSuggestService(new MistralProvider());
+const auditService = new DuerAuditService();
+
+/* ============================
+ * POST /api/duer/ia-audit
+ * ============================ */
+export const iaAudit = async (req: AuthRequest, res: Response) => {
+  try {
+    const body = (req.body || {}) as { doc?: any; sector?: string; unites?: string[] };
+    const doc = body?.doc?.duer || body?.doc || body;
+    if (!doc?.unites) return res.status(400).json({ error: "DOC_REQUIRED", message: "Body must contain {doc} au format DuerDoc." });
+    const report = await auditService.audit(doc, { sector: body.sector, unites: body.unites });
+    return res.status(200).json({ report });
+  } catch (e: any) {
+    return res.status(500).json({ error: "AUDIT_ERROR", message: e?.message });
+  }
+};
+
+/* ============================
+ * POST /api/duer/:id/ia-audit
+ * ============================ */
+export const iaAuditById = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const row = await DuerRepo.getOne(id);
+    if (!row || row.orgId !== req.user!.orgId) return res.status(404).json({ error: "DUER non trouvé" });
+    const report = await auditService.audit(row.doc, { 
+      sector: row.sector, 
+      unites: row.doc.unites?.map((u: any) => u.nom) 
+    });
+    return res.status(200).json({ report });
+  } catch (e: any) {
+    return res.status(500).json({ error: "AUDIT_ERROR", message: e?.message });
+  }
+};
 
 /* ============================
  * Helpers
  * ============================ */
 const getReqUserId = (req: AuthRequest) => req.user?.id!;
 const getReqOrgId = (req: AuthRequest) => req.user?.orgId!;
+
+/* ============================
+ * POST /api/duer/ia-suggest
+ * ============================ */
+export const suggestRisks = async (req: AuthRequest, res: Response) => {
+  try {
+    const body = req.body || {};
+    const unites: string[] = [
+      ...(Array.isArray(body.unites) ? body.unites : []),
+      ...(Array.isArray(body.units) ? body.units : [])
+    ].filter(Boolean);
+
+    const sector = (body.sector || "").trim();
+    if (!sector || unites.length === 0) {
+      return res.status(400).json({
+        error: "INVALID_INPUT",
+        message: "sector et unites (au moins 1) sont requis"
+      });
+    }
+
+    const suggestions = await suggestService.suggest({
+      sector,
+      units: unites,
+      historique: Array.isArray(body.historique) ? body.historique : [],
+      contraintes: Array.isArray(body.contraintes) ? body.contraintes : [],
+      reponses: body.reponses || {}
+    });
+
+    return res.status(200).json({ suggestions });
+  } catch (e: any) {
+    console.error('Error in suggestRisks:', e);
+    return res.status(500).json({ 
+      error: "SERVER_ERROR", 
+      message: e?.message || "Une erreur est survenue lors de la génération des suggestions"
+    });
+  }
+};
+
+/* ============================
+ * POST /api/duer/ia-questions-dynamic
+ * ============================ */
+export const generateQuestionsDynamic = async (req: AuthRequest, res: Response) => {
+  try {
+    const { sector, size, unites, historique, contraintes } = req.body as any;
+    if (!sector || !size || !Array.isArray(unites) || !unites.length) {
+      return res.status(400).json({ error: "Secteur, taille et unités requis" });
+    }
+    const out = await dynamicService.generateDynamicQuestions({
+      sector, size, unites,
+      historique: Array.isArray(historique) ? historique : [],
+      contraintes: Array.isArray(contraintes) ? contraintes : []
+    });
+    return res.status(200).json(out);
+  } catch (e: any) {
+    return res.status(500).json({ error: "Erreur génération questions dynamiques", message: e?.message });
+  }
+};
+/* ============================
+ * POST /api/duer/ia-questions-next
+ * ============================ */
+export const nextQuestions = async (req: AuthRequest, res: Response) => {
+  try {
+    const body = req.body as SlotNextInput;
+    if (!body?.sector || !body?.size || !Array.isArray(body?.unites) || !body.unites.length) {
+      return res.status(400).json({ error: "INVALID_INPUT", message: "sector, size, unites requis" });
+    }
+    const svc = new SlotFillingService(new DefaultAIProvider());
+    const out = await svc.next(body);
+    return res.status(200).json(out);
+  } catch (e: any) {
+    return res.status(500).json({ error: "SERVER_ERROR", message: e?.message || String(e) });
+  }
+};
 
 /* ============================
  * POST /api/duer/ia-questions
@@ -95,12 +214,22 @@ export const generateDUER = async (req: AuthRequest, res: Response) => {
     // Sanitize and validate the document
     let doc;
     try {
-      // First sanitize the AI-generated content, then enhance with organizational risks
+      // 1) Sanitize the AI-generated content
       const sanitized = sanitizeDuerCandidate(docRaw);
-      const enhanced = enhanceWithOrgRisks(reponses || {}, sanitized, { 
+      
+      // 2) Enhance with organizational risks
+      let enhanced = enhanceWithOrgRisks(reponses || {}, sanitized, { 
         budgetSerre: !!req.body?.budgetSerre 
       });
-      // Then normalize and validate
+      
+      // 3) Apply additional enhancements
+      enhanced = filterRisksInScope(enhanced);
+      enhanced = applyAnswersToDoc(reponses || {}, enhanced);
+      enhanced = recomputePriorities(enhanced, Number(req.body?.weightProb) || 1, Number(req.body?.weightGrav) || 1);
+      enhanced = smartifyMeasures(enhanced);
+
+      
+      // 4) Normalize and validate
       doc = enforceConformiteSynthese(normalizeDuerDoc(enhanced));
       console.log(`[${reqId}] Document enhanced, sanitized and validated successfully`);
     } catch (e: any) {
@@ -233,11 +362,13 @@ export const generateDUERPdf = async (req: Request, res: Response) => {
     if (!row) return res.status(404).json({ error: "DUER non trouvé" });
 
     const doc = normalizeDuerDoc(row.doc);
-    const pdf = await renderDuerPdf(id, doc, { title: "Document Unique d'Évaluation des Risques" });
+    const pdfDoc = renderDuerPdf(id, doc, { title: "Document Unique d'Évaluation des Risques" });
     
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=DUER_${id}.pdf`);
-    return res.send(pdf);
+    // PDFKit -> stream
+    pdfDoc.pipe(res);
+    pdfDoc.end();
   } catch (e: any) {
     console.error("PDF generation error:", e);
     return res.status(500).json({ error: "Erreur lors de la génération du PDF", details: e?.message });
@@ -267,10 +398,13 @@ export const exportDUERCsv = async (req: AuthRequest, res: Response) => {
 
   // CSV (sans dépendance)
   const header = [
-    "unitId","unitName","riskId","danger","situation",
+    "unitId","unitName","riskId","applicable",
+    "danger","situation",
     "gravite","grav_label","probabilite","prob_label","hierarchie",
-    "priorite",
-    "mesures_existantes","mesures_proposees","suivi_responsable","suivi_echeance","suivi_indicateur"
+    "priorite_brut","maitrise","risque_net",
+    "effectifs_concernes","penibilite",
+    "mesures_existantes","mesures_proposees",
+    "suivi_responsable","suivi_echeance","suivi_indicateur","suivi_date_decision","suivi_realise_le"
   ];
   
   const escape = (v: any) => {
@@ -285,14 +419,18 @@ export const exportDUERCsv = async (req: AuthRequest, res: Response) => {
     const gravL = gravToLabel(Number(r.gravite));
     const h = calculerHierarchie(probL, gravL);
     return [
-      r.unitId, r.unitName, r.riskId, r.danger, r.situation,
+      r.unitId, r.unitName, r.riskId, r.applicable ? "oui" : "non",
+      r.danger, r.situation,
       r.gravite, gravL, r.probabilite, probL, h,
-      r.priorite,
+      r.priorite, r.maitrise || "", r.risque_net || r.priorite,
+      r.effectifs_concernes ?? "", r.penibilite === null ? "" : (r.penibilite ? "oui" : "non"),
       (r.mesures_existantes || []).join(" • "),
       (r.mesures_proposees || []).map((m: any) => m?.description).filter(Boolean).join(" • "),
       r.suivi?.responsable || "",
       r.suivi?.echeance || "",
-      r.suivi?.indicateur || ""
+      r.suivi?.indicateur || "",
+      r.suivi?.date_decision || "",
+      r.suivi?.realise_le || ""
     ].map(escape).join(",");
   });
 
@@ -312,7 +450,11 @@ type PatchOp =
   | { op: 'remove_risk'; unitId: string; riskId: string }
   | { op: 'add_unit'; unit: { id?: string; nom: string; risques: any[] } }
   | { op: 'edit_unit'; unitId: string; data: Partial<{ nom: string }> }
-  | { op: 'remove_unit'; unitId: string };
+  | { op: 'remove_unit'; unitId: string }
+  | { op: 'edit_maitrise'; unitId: string; riskId: string; maitrise: "AUCUNE"|"PARTIELLE"|"BONNE"|"TRES_BONNE" }
+  | { op: 'edit_effectifs'; unitId: string; riskId: string; effectifs: number|null }
+  | { op: 'toggle_penibilite'; unitId: string; riskId: string; value: boolean|null }
+  | { op: 'set_dates'; unitId: string; riskId: string; date_decision?: string; realise_le?: string };
 
 export const patchDUER = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
@@ -352,7 +494,7 @@ export const patchDUER = async (req: AuthRequest, res: Response) => {
         if (!u) continue;
         const newRisk = { ...op.risk };
         if (!newRisk.id) {
-          newRisk.id = `R${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`;
+          newRisk.id = `R${Date.now().toString(36).slice(2,6)}-${Math.random().toString(36).slice(2,6)}`;
         }
         u.risques.push(newRisk);
         break;
@@ -365,7 +507,7 @@ export const patchDUER = async (req: AuthRequest, res: Response) => {
       }
       case 'add_unit': {
         const unit = { ...op.unit, risques: op.unit.risques || [] };
-        (unit as any).id = (unit as any).id || `U${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`;
+        (unit as any).id = (unit as any).id || `U${Date.now().toString(36).slice(2,6)}-${Math.random().toString(36).slice(2,6)}`;
         doc.unites.push(unit as any);
         break;
       }
@@ -376,7 +518,36 @@ export const patchDUER = async (req: AuthRequest, res: Response) => {
         break;
       }
       case 'remove_unit': {
-        doc.unites = doc.unites.filter(u => (u as any).id !== op.unitId && u.nom !== op.unitId);
+        doc.unites = doc.unites?.filter((u: any) => (u as any).id !== op.unitId) || [];
+        break;
+      }
+      case 'edit_maitrise': {
+        const u = findUnit(op.unitId); const r = u && findRisk(u, op.riskId); if (!r) break;
+        const maitrise = op.maitrise as 'AUCUNE' | 'PARTIELLE' | 'BONNE' | 'TRES_BONNE';
+        r.maitrise = maitrise;
+        const g = Number(r.gravite) || 1;
+        const p = Number(r.probabilite) || 1;
+        const maitriseFactors = { AUCUNE: 0, PARTIELLE: 0.5, BONNE: 0.7, TRES_BONNE: 0.9 };
+        const f = (maitriseFactors as any)[maitrise] ?? 0;
+        r.risque_net = Math.ceil(g * p * (1 - f));
+        break;
+      }
+      case 'edit_effectifs': {
+        const u = findUnit(op.unitId); const r = u && findRisk(u, op.riskId); if (!r) break;
+        r.effectifs_concernes = op.effectifs;
+        break;
+      }
+      case 'toggle_penibilite': {
+        const u = findUnit(op.unitId); const r = u && findRisk(u, op.riskId); if (!r) break;
+        r.penibilite = op.value;
+        break;
+      }
+      case 'set_dates': {
+        const u = findUnit(op.unitId); const r = u && findRisk(u, op.riskId); if (!r) break;
+        r.suivi = { ...(r.suivi||{}),
+          date_decision: op.date_decision ?? r.suivi?.date_decision,
+          realise_le: op.realise_le ?? r.suivi?.realise_le
+        };
         break;
       }
       default:

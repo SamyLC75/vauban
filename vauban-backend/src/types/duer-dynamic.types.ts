@@ -1,6 +1,11 @@
 // src/types/duer-dynamic.types.ts
 export type CategorySpec = string | string[];
 
+export interface ShowIfCondition {
+  qid: string;
+  equals: string;
+}
+
 export interface EnhancedQuestion {
   id: string;
   question: string;
@@ -12,6 +17,7 @@ export interface EnhancedQuestion {
   // Nouveau (optionnel, rétrocompatible)
   importance?: "urgent" | "important" | "complementaire";
   gap_reason?: string; // courte justification: quelle incertitude réduit cette question ?
+  showIf?: ShowIfCondition[]; // conditions pour afficher cette question
 }
 
 export interface EnhancedGenerationContext {

@@ -63,6 +63,12 @@ Règles:
 4) Plan d'actions STRUCTURÉ: "mesures_proposees" avec type ∈ {collective, individuelle, formation}, delai, cout_estime (€, €€, €€€ ou plage), reference.
 5) Mesures RÉALISTES vs budget repère (${bm.avgBudget}), évite le hors-sujet.
 6) "synthese" cohérente: compteurs, top_3_priorites, budget_prevention_estime (intervalle).
+7) Renseigne pour chaque risque :
+   - "maitrise": "AUCUNE"|"PARTIELLE"|"BONNE"|"TRES_BONNE" (selon la qualité des mesures EXISTANTES),
+   - "effectifs_concernes": entier approximatif,
+   - "penibilite": true/false si facteur de pénibilité s'applique,
+   - "applicable": true/false (par défaut true).
+   - "suivi.date_decision" et "suivi.realise_le" sont facultatifs.
 
 FORMAT DE SORTIE (JSON STRICT) — UNIQUEMENT le JSON, pas de texte autour:
 {
@@ -80,6 +86,10 @@ FORMAT DE SORTIE (JSON STRICT) — UNIQUEMENT le JSON, pas de texte autour:
             "gravite": 1,
             "probabilite": 1,
             "priorite": 1,
+            "maitrise": "AUCUNE|PARTIELLE|BONNE|TRES_BONNE",
+            "effectifs_concernes": 3,
+            "penibilite": false,
+            "applicable": true,
             "mesures_existantes": ["..."],
             "mesures_proposees": [
               {
@@ -93,7 +103,9 @@ FORMAT DE SORTIE (JSON STRICT) — UNIQUEMENT le JSON, pas de texte autour:
             "suivi": {
               "responsable": "fonction",
               "echeance": "3 mois|6 mois|1 an",
-              "indicateur": "KPI mesurable"
+              "indicateur": "KPI mesurable",
+              "date_decision": "YYYY-MM-DD",
+              "realise_le": "YYYY-MM-DD"
             }
           }
         ]

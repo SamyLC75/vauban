@@ -1,3 +1,4 @@
+// src/pages/duer.page.tsx
 import React from 'react';
 import DUERWizard from '../components/duer/DUERWizard';
 

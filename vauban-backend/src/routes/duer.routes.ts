@@ -3,6 +3,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
 import {
   generateQuestions,
+  generateQuestionsDynamic,
   generateDUER,
   getDUER,
   explainRisk,
@@ -12,10 +13,14 @@ import {
   saveDUER,
   getDUERFlat,
   patchDUER,
-  exportDUERCsv
+  exportDUERCsv,
+  suggestRisks,
+  iaAudit,
+  iaAuditById
 } from '../controllers/duer.controller';
 import { exportDUERXlsx } from "../services/xlsx.service";
 import { DuerRepo } from "../repositories/duer.repo";
+import { nextQuestions } from '../controllers/duer.controller';
 
 const router = Router();
 
@@ -24,6 +29,16 @@ router.use(authMiddleware);
 
 // Génération des questions d'affinage
 router.post("/duer/ia-questions", generateQuestions);
+
+// Génération des questions dynamiques
+router.post("/duer/ia-questions-dynamic", generateQuestionsDynamic);
+
+// Suggestions de risques
+router.post("/duer/ia-suggest", suggestRisks);
+
+// Audit IA
+router.post("/duer/ia-audit", iaAudit);
+router.post("/duer/:id/ia-audit", iaAuditById);
 
 // Génération complète du DUER + persistance
 router.post("/duer/ia-generate", (req, res, next) => {
@@ -64,5 +79,8 @@ router.get("/duer/:id/xlsx", async (req, res) => {
   await wb.xlsx.write(res);
   res.end();
 });
+
+// Génération des questions suivantes
+router.post("/duer/ia-questions-next", nextQuestions);
 
 export default router;
