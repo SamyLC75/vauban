@@ -15,14 +15,27 @@ export interface AuthRequest extends Request {
 }
 
 function decodeToken(token: string): TokenPayload {
-  const decoded = jwt.verify(token, jwtConfig.secret) as JwtPayload;
-  // garde-fou runtime
-  if (
-    typeof decoded !== "object" ||
-    !decoded.sub ||
-    typeof decoded.sub !== "string"
-  ) throw new Error("Invalid token payload");
-  return decoded as TokenPayload;
+  try {
+    console.log('JWT Secret being used:', jwtConfig.secret ? '***' : 'NOT SET');
+    console.log('Token being verified:', token.substring(0, 10) + '...');
+    
+    const decoded = jwt.verify(token, jwtConfig.secret) as JwtPayload;
+    
+    // garde-fou runtime
+    if (
+      typeof decoded !== "object" ||
+      !decoded.sub ||
+      typeof decoded.sub !== "string"
+    ) {
+      console.error('Invalid token payload:', decoded);
+      throw new Error("Invalid token payload");
+    }
+    
+    return decoded as TokenPayload;
+  } catch (error) {
+    console.error('JWT verification failed:', error);
+    throw error;
+  }
 }
 
 export function attachUserFromToken(req: AuthRequest): void {
@@ -40,10 +53,24 @@ export function attachUserFromToken(req: AuthRequest): void {
 
 export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    console.log(`[${new Date().toISOString()}] Auth check for:`, {
+      path: req.path,
+      method: req.method,
+      hasAuthHeader: !!req.headers.authorization,
+      authHeader: req.headers.authorization ? `${req.headers.authorization.substring(0, 10)}...` : 'none'
+    });
+    
     attachUserFromToken(req);
-    if (!req.user) return res.status(401).json({ error: "Missing token" });
+    
+    if (!req.user) {
+      console.log('No user attached - missing or invalid token');
+      return res.status(401).json({ error: "Missing token" });
+    }
+    
+    console.log(`Authenticated user: ${req.user.username} (${req.user.role})`);
     next();
   } catch (e) {
+    console.error('Authentication error:', e);
     return res.status(401).json({ error: "Invalid token" });
   }
 };

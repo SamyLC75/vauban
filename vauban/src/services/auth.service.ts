@@ -7,6 +7,8 @@ export async function login(username: string, password: string) {
       method: "POST",
       body: JSON.stringify({ username, password }),
     });
+    // Store token in both locations for compatibility
+    localStorage.setItem("vauban_token", data.token);
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
     console.log('Login successful:', { userId: data.user.id, role: data.user.role });
@@ -18,12 +20,13 @@ export async function login(username: string, password: string) {
 }
 
 export function logout() {
+  localStorage.removeItem("vauban_token");
   localStorage.removeItem("token");
   localStorage.removeItem("user");
 }
 
 export function getToken() {
-  return localStorage.getItem("token");
+  return localStorage.getItem("vauban_token") || localStorage.getItem("token");
 }
 
 export function getUser() {

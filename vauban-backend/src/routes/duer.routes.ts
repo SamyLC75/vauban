@@ -21,11 +21,41 @@ import {
 import { exportDUERXlsx } from "../services/xlsx.service";
 import { DuerRepo } from "../repositories/duer.repo";
 import { nextQuestions } from '../controllers/duer.controller';
+import * as dotenv from "dotenv";
+dotenv.config();
 
 const router = Router();
 
 // Toutes les routes DUER sont protégées
 router.use(authMiddleware);
+
+// ---- /api/status : utilisé par le Step 1 front pour vérifier la config IA
+router.get("/status", (_req, res) => {
+  const mistralConfigured = Boolean(process.env.MISTRAL_API_KEY && process.env.MISTRAL_API_KEY.trim());
+  res.json({ mistralConfigured });
+});
+
+// ---- Middleware d'harmonisation d'input pour toutes les routes IA DUER
+// - Tolère `units` ou `unites`
+// - Accepte les champs étendus sans obligation (units_ext, incidents, contraintes_ext, transversal_flags)
+router.use((req, _res, next) => {
+  try {
+    if (req.method === 'POST' && req.path.startsWith("/duer/ia-")) {
+      const b: any = req.body || {};
+      // key alias
+      if (!b.unites && Array.isArray(b.units)) {
+        b.unites = b.units;
+      }
+      // normalisation de tableaux
+      for (const k of ["unites","units_ext","incidents","contraintes_ext","transversal_flags"]) {
+        if (b[k] == null) continue;
+        if (!Array.isArray(b[k])) { b[k] = [b[k]].filter(Boolean); }
+      }
+      req.body = b;
+    }
+  } catch {}
+  next();
+});
 
 // Génération des questions d'affinage
 router.post("/duer/ia-questions", generateQuestions);

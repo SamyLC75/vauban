@@ -6,7 +6,7 @@ import { Risk, UniteTravail, DuerDoc } from "../../types/duer.types";
 import { AuditPanel } from "./AuditPanel";
 import { probToLabel, gravToLabel, calculerHierarchie, hierToGlyph } from "../../utils/carsat";
 import { computeBudgetDetails } from "../../utils/budget";
-import CarsatLegend from "./CarsatLegend";
+import RiskLegendPopover from "./RiskLegendPopover";
 import {
   AlertCircle,
   Loader2,
@@ -194,9 +194,30 @@ const DUERWizard: React.FC = () => {
     weightGrav: 1.1,
     budgetSerre: false,
   });
+  // Effectifs par unité (clé = nom de l'unité)
+  const [unitEffectifs, setUnitEffectifs] = useState<Record<string, number>>({});
+  // Options avancées (expert) repliées par défaut
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // Listes “simples” (compat backend actuel)
   const [histList, setHistList] = useState<string[]>([""]);
   const [consList, setConsList] = useState<string[]>([""]);
+
+  // 🔹 Liaisons incidents/contraintes ↔ unités (UI avancée)
+  type LinkedItem = { text: string; units: string[] }; // units names, or ["__ALL__"]
+  const [histAdvList, setHistAdvList] = useState<LinkedItem[]>([{ text: "", units: ["__ALL__"] }]);
+  const [consAdvList, setConsAdvList] = useState<LinkedItem[]>([{ text: "", units: ["__ALL__"] }]);
+
+  // 🔹 Sujets communs transversaux (optionnels)
+  const COMMON_FLAGS = [
+    "Incendie / évacuation",
+    "Circulation interne (piétons/chariots)",
+    "Entreprises extérieures / coactivité",
+    "RPS (stress, charge, conflits)",
+    "Travail isolé",
+    "Intempéries / canicule / grand froid",
+  ];
+  const [transversalFlags, setTransversalFlags] = useState<string[]>([]);
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [generatedDUER, setGeneratedDUER] = useState<DuerDoc | null>(null);
@@ -222,6 +243,21 @@ const DUERWizard: React.FC = () => {
   const [coverage, setCoverage] = useState(0);
   const [slotLoading, setSlotLoading] = useState(false);
 
+  // Résumé Step 1 (panneau latéral)
+  const filledUnits = useMemo(() => formData.unites.map(u => u.trim()).filter(Boolean), [formData.unites]);
+  const totalEffectif = useMemo(
+    () => filledUnits.reduce((acc, u) => acc + (Number(unitEffectifs[u]) || 0), 0),
+    [filledUnits, unitEffectifs]
+  );
+  const incidentsCount = useMemo(
+    () => (histAdvList.filter(i => i.text.trim()).length || histList.filter(s => s.trim()).length),
+    [histAdvList, histList]
+  );
+  const contraintesCount = useMemo(
+    () => (consAdvList.filter(i => i.text.trim()).length || consList.filter(s => s.trim()).length),
+    [consAdvList, consList]
+  );
+
   // Token présent ?
   useEffect(() => {
     const token = getToken();
@@ -230,25 +266,53 @@ const DUERWizard: React.FC = () => {
     }
   }, []);
 
-  // Hydrate listes depuis les champs textarea s'ils sont déjà remplis
+  // Hydrate listes depuis les champs textarea s'ils sont déjà remplis (ex: retour en arrière)
   useEffect(() => {
     if (formData.historique) {
       const histItems = formData.historique.split("\n").map(s => s.replace(/^-\s*/, "").trim()).filter(Boolean);
-      if (histItems.length > 0) setHistList(histItems);
+      if (histItems.length > 0) {
+        setHistList(histItems);
+        setHistAdvList(histItems.map(t => ({ text: t, units: ["__ALL__"] })));
+      }
     }
     if (formData.contraintes) {
       const consItems = formData.contraintes.split("\n").map(s => s.replace(/^-\s*/, "").trim()).filter(Boolean);
-      if (consItems.length > 0) setConsList(consItems);
+      if (consItems.length > 0) {
+        setConsList(consItems);
+        setConsAdvList(consItems.map(t => ({ text: t, units: ["__ALL__"] })));
+      }
     }
   }, [formData.historique, formData.contraintes]);
+
+  // ---------- helpers pour payload étendu ----------
+  const buildUnitsExt = (units: string[]) =>
+    units.map((nom, idx) => {
+      const slug = nom.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      return { id: `U${idx}-${slug || "unit"}`, nom, effectif: unitEffectifs[nom] ?? undefined };
+    });
+
+  const mapUnitsSelection = (arr: string[], units: string[]) => {
+    if (!arr || arr.length === 0 || arr.includes("__ALL__")) return ["__ALL__"];
+    return arr.filter(u => units.includes(u));
+  };
+
+  const buildIncidentsExt = (units: string[]) =>
+    histAdvList
+      .filter(i => i.text.trim())
+      .map(i => ({ description: i.text.trim(), unitIds: mapUnitsSelection(i.units, units) }));
+
+  const buildContraintesExt = (units: string[]) =>
+    consAdvList
+      .filter(i => i.text.trim())
+      .map(i => ({ description: i.text.trim(), unitIds: mapUnitsSelection(i.units, units) }));
 
   /** --------- Étape 1 : fetch questions IA --------- */
   const handleStep1Submit = async () => {
     try {
       setError("");
       if (!formData.sector.trim()) { setError("Veuillez renseigner le secteur d'activité."); return; }
-      const filledUnits = formData.unites.map(u => u.trim()).filter(Boolean);
-      if (filledUnits.length === 0) { setError("Veuillez saisir au moins une unité de travail."); return; }
+      const filledUnitsLocal = formData.unites.map(u => u.trim()).filter(Boolean);
+      if (filledUnitsLocal.length === 0) { setError("Veuillez saisir au moins une unité de travail."); return; }
 
       setLoading(true);
 
@@ -256,19 +320,31 @@ const DUERWizard: React.FC = () => {
         if (!s.mistralConfigured) throw new Error("Le service IA n'est pas configuré côté serveur (clé absente).");
       });
 
-      const histString = histList.filter(s => s.trim()).map(s => `- ${s.trim()}`).join("\n");
-      const consString = consList.filter(s => s.trim()).map(s => `- ${s.trim()}`).join("\n");
+      // Compat simple (texte) + UI avancée (liée aux unités)
+      const histSimpleArr = (histAdvList.some(i => i.text.trim())
+        ? histAdvList.map(i => i.text).filter(Boolean)
+        : histList.filter(Boolean));
+      const consSimpleArr = (consAdvList.some(i => i.text.trim())
+        ? consAdvList.map(i => i.text).filter(Boolean)
+        : consList.filter(Boolean));
 
+      const histString = histSimpleArr.map(s => `- ${s.trim()}`).join("\n");
+      const consString = consSimpleArr.map(s => `- ${s.trim()}`).join("\n");
       setFormData(prev => ({ ...prev, historique: histString, contraintes: consString }));
 
-      const payload = {
+      const payload: any = {
         sector: formData.sector,
         size: formData.size,
-        unites: filledUnits,
+        unites: filledUnitsLocal,
         weightProb: formData.weightProb,
         weightGrav: formData.weightGrav,
-        historique: histList.filter(s => s.trim()),
-        contraintes: consList.filter(s => s.trim()),
+        historique: histSimpleArr,
+        contraintes: consSimpleArr,
+        // extensions optionnelles (le back peut les ignorer)
+        units_ext: buildUnitsExt(filledUnitsLocal),
+        incidents: buildIncidentsExt(filledUnitsLocal),
+        contraintes_ext: buildContraintesExt(filledUnitsLocal),
+        transversal_flags: transversalFlags,
       };
 
       const data = await apiFetch<IAQuestionsResponse>("/api/duer/ia-questions-dynamic", {
@@ -306,16 +382,22 @@ const DUERWizard: React.FC = () => {
   async function fetchNextQuestions() {
     setSlotLoading(true);
     try {
-      const payload = {
+      const filledUnitsLocal = formData.unites.filter(Boolean);
+      const payload: any = {
         sector: formData.sector,
         size: formData.size,
-        unites: formData.unites.filter(Boolean),
-        historique: histList.filter(s => s.trim()),
-        contraintes: consList.filter(s => s.trim()),
+        unites: filledUnitsLocal,
+        historique: (histAdvList.some(i => i.text.trim()) ? histAdvList.map(i => i.text).filter(Boolean) : histList.filter(Boolean)),
+        contraintes: (consAdvList.some(i => i.text.trim()) ? consAdvList.map(i => i.text).filter(Boolean) : consList.filter(Boolean)),
         asked: questions.map(q => ({ id: q.id, question: q.question })),
         answers: formData.reponses,
         coverageTarget: 0.85,
-        maxNew: 6
+        maxNew: 6,
+        // extensions
+        units_ext: buildUnitsExt(filledUnitsLocal),
+        incidents: buildIncidentsExt(filledUnitsLocal),
+        contraintes_ext: buildContraintesExt(filledUnitsLocal),
+        transversal_flags: transversalFlags,
       };
       const resp = await apiFetch<{
         questions: IAQuestion[];
@@ -349,12 +431,18 @@ const DUERWizard: React.FC = () => {
   async function fetchRiskSuggestions() {
     try {
       setError("");
-      const payload = {
+      const filledUnitsLocal = formData.unites.filter(Boolean);
+      const payload: any = {
         sector: formData.sector,
-        units: formData.unites.filter(Boolean),
-        historique: histList.filter(s => s.trim()),
-        contraintes: consList.filter(s => s.trim()),
-        reponses: formData.reponses
+        units: filledUnitsLocal,
+        historique: (histAdvList.some(i => i.text.trim()) ? histAdvList.map(i => i.text).filter(Boolean) : histList.filter(Boolean)),
+        contraintes: (consAdvList.some(i => i.text.trim()) ? consAdvList.map(i => i.text).filter(Boolean) : consList.filter(Boolean)),
+        reponses: formData.reponses,
+        // extensions
+        units_ext: buildUnitsExt(filledUnitsLocal),
+        incidents: buildIncidentsExt(filledUnitsLocal),
+        contraintes_ext: buildContraintesExt(filledUnitsLocal),
+        transversal_flags: transversalFlags,
       };
       const res = await apiFetch<{ suggestions: any[] }>(
         "/api/duer/ia-suggest",
@@ -402,22 +490,35 @@ const DUERWizard: React.FC = () => {
       setError("");
       setLoading(true);
 
-      const filledUnits = formData.unites.map(u => u.trim()).filter(Boolean);
-      const histString = histList.filter(s => s.trim()).map(s => `- ${s.trim()}`).join("\n");
-      const consString = consList.filter(s => s.trim()).map(s => `- ${s.trim()}`).join("\n");
+      const filledUnitsLocal = formData.unites.map(u => u.trim()).filter(Boolean);
+
+      // Compat simple + maj des champs texte
+      const histSimpleArr = (histAdvList.some(i => i.text.trim())
+        ? histAdvList.map(i => i.text).filter(Boolean)
+        : histList.filter(Boolean));
+      const consSimpleArr = (consAdvList.some(i => i.text.trim())
+        ? consAdvList.map(i => i.text).filter(Boolean)
+        : consList.filter(Boolean));
+      const histString = histSimpleArr.map(s => `- ${s.trim()}`).join("\n");
+      const consString = consSimpleArr.map(s => `- ${s.trim()}`).join("\n");
 
       setFormData(prev => ({ ...prev, historique: histString, contraintes: consString }));
 
-      const payload = {
+      const payload: any = {
         sector: formData.sector,
         size: formData.size,
-        unites: filledUnits,
-        historique: histList.filter(s => s.trim()),
-        contraintes: consList.filter(s => s.trim()),
+        unites: filledUnitsLocal,
+        historique: histSimpleArr,
+        contraintes: consSimpleArr,
         reponses: formData.reponses || {},
         weightProb: formData.weightProb,
         weightGrav: formData.weightGrav,
         budgetSerre: formData.budgetSerre,
+        // extensions
+        units_ext: buildUnitsExt(filledUnitsLocal),
+        incidents: buildIncidentsExt(filledUnitsLocal),
+        contraintes_ext: buildContraintesExt(filledUnitsLocal),
+        transversal_flags: transversalFlags,
       };
 
       const res: any = await apiFetch("/api/duer/ia-generate", {
@@ -553,6 +654,7 @@ const DUERWizard: React.FC = () => {
             <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <FileText className="w-6 h-6 text-blue-600" />
               Générateur DUER avec IA
+              <RiskLegendPopover />
             </h2>
 
             <div className="mt-4 flex items-center justify-between">
@@ -579,7 +681,7 @@ const DUERWizard: React.FC = () => {
               <span className="text-gray-600">Génération</span>
               <span className="text-gray-600">Résultat</span>
             </div>
-            <CarsatLegend className="mt-4" />
+            {/* Légende CARSAT via popover pour éviter l'encombrement */}
           </div>
 
           {error && (
@@ -594,187 +696,393 @@ const DUERWizard: React.FC = () => {
             <div className="p-6">
               <h3 className="text-lg font-semibold mb-4">Informations sur votre entreprise</h3>
 
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Secteur d'activité</label>
-                  <input
-                    type="text"
-                    value={formData.sector}
-                    onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
-                    className="w-full border rounded px-3 py-2"
-                    placeholder="Ex: BTP, Restauration, Industrie..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Taille de l'entreprise</label>
-                  <select
-                    value={formData.size}
-                    onChange={(e) => {
-                      const newSize = e.target.value as "TPE" | "PME" | "ETI";
-                      const weights = {
-                        TPE: { weightProb: 1.0, weightGrav: 1.1 },
-                        PME: { weightProb: 1.1, weightGrav: 1.15 },
-                        ETI: { weightProb: 1.2, weightGrav: 1.2 }
-                      }[newSize];
-                      setFormData({ 
-                        ...formData, 
-                        size: newSize,
-                        weightProb: weights.weightProb,
-                        weightGrav: weights.weightGrav
-                      });
-                    }}
-                    className="w-full border rounded px-3 py-2"
-                  >
-                    <option value="TPE">TPE (moins de 10 salariés)</option>
-                    <option value="PME">PME (10-250 salariés)</option>
-                    <option value="ETI">ETI (plus de 250 salariés)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <RiskMatrixEditor
-                    weightProb={formData.weightProb}
-                    weightGrav={formData.weightGrav}
-                    onChange={(prob, grav) => setFormData({ ...formData, weightProb: prob, weightGrav: grav })}
-                  />
-                </div>
-
-                <div className="flex items-center space-x-2 p-4 border rounded-lg bg-gray-50">
-                  <div className="flex items-center">
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        checked={formData.budgetSerre}
-                        onChange={(e) => setFormData({ ...formData, budgetSerre: e.target.checked })}
-                      />
-                      <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </div>
+              {/* Layout moderne : 2 colonnes (formulaire + récap) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Colonne formulaire */}
+                <div className="lg:col-span-8 space-y-6">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Budget serré (prioriser alternatives low-cost)</p>
-                    <p className="text-xs text-gray-500">Activez pour privilégier des solutions plus économiques dans les mesures proposées.</p>
+                    <label className="block text-sm font-medium mb-2">Secteur d'activité</label>
+                    <input
+                      type="text"
+                      value={formData.sector}
+                      onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+                      className="w-full border rounded px-3 py-2"
+                      placeholder="Ex. Menuiserie & pose (atelier + chantiers), cabine de vernissage, découpe/usinage…"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Décrivez simplement votre activité principale et les environnements (atelier, bureaux, chantiers…).
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Taille de l'entreprise</label>
+                    <select
+                      value={formData.size}
+                      onChange={(e) => {
+                        const newSize = e.target.value as "TPE" | "PME" | "ETI";
+                        const weights = {
+                          TPE: { weightProb: 1.0, weightGrav: 1.1 },
+                          PME: { weightProb: 1.1, weightGrav: 1.15 },
+                          ETI: { weightProb: 1.2, weightGrav: 1.2 }
+                        }[newSize];
+                        setFormData({
+                          ...formData,
+                          size: newSize,
+                          weightProb: weights.weightProb,
+                          weightGrav: weights.weightGrav
+                        });
+                      }}
+                      className="w-full border rounded px-3 py-2"
+                    >
+                      <option value="TPE">TPE (moins de 10 salariés)</option>
+                      <option value="PME">PME (10-250 salariés)</option>
+                      <option value="ETI">ETI (plus de 250 salariés)</option>
+                    </select>
+                  </div>
+
+                  {/* Options avancées (expert) */}
+                  <div className="border rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvanced(v => !v)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left text-sm"
+                    >
+                      <span className="font-medium">Options avancées (expert)</span>
+                      <ChevronRight className={`w-4 h-4 transition-transform ${showAdvanced ? "rotate-90" : ""}`} />
+                    </button>
+                    {showAdvanced && (
+                      <div className="px-4 pb-4">
+                        <RiskMatrixEditor
+                          weightProb={formData.weightProb}
+                          weightGrav={formData.weightGrav}
+                          onChange={(prob, grav) => setFormData({ ...formData, weightProb: prob, weightGrav: grav })}
+                        />
+                        <p className="mt-2 text-xs text-gray-500">Si vous n'êtes pas sûr, laissez les valeurs par défaut.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center space-x-2 p-4 border rounded-lg bg-gray-50">
+                    <div className="flex items-center">
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={formData.budgetSerre}
+                          onChange={(e) => setFormData({ ...formData, budgetSerre: e.target.checked })}
+                        />
+                        <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Budget serré (prioriser alternatives low-cost)</p>
+                      <p className="text-xs text-gray-500">Activez pour privilégier des solutions plus économiques dans les mesures proposées.</p>
+                    </div>
+                  </div>
+
+                  {/* Unités + Effectifs */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Unités de travail & effectifs</label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Regroupez vos activités par unité (lieu/activité). Ex. Atelier – Découpe, Cabine de vernissage, Magasin, Chantiers, Bureaux/BE.
+                    </p>
+                    <div className="space-y-2">
+                      {formData.unites.map((u, i) => (
+                        <div key={i} className="grid grid-cols-12 gap-2">
+                          <input
+                            type="text"
+                            value={u}
+                            onChange={(e) => {
+                              const oldName = formData.unites[i];
+                              const newName = e.target.value;
+                              const newUnits = [...formData.unites];
+                              newUnits[i] = newName;
+                              setFormData({ ...formData, unites: newUnits });
+                              // Renommer la clé d'effectif si existante
+                              if (oldName && unitEffectifs[oldName] !== undefined) {
+                                setUnitEffectifs(prev => {
+                                  const { [oldName]: oldVal, ...rest } = prev;
+                                  return newName ? { ...rest, [newName]: oldVal } : rest;
+                                });
+                              }
+                              // Renommer les références d'unités dans incidents/contraintes avancés
+                              if (oldName && oldName !== newName) {
+                                setHistAdvList(prev =>
+                                  prev.map(it => ({
+                                    ...it,
+                                    units: it.units.includes("__ALL__")
+                                      ? it.units
+                                      : it.units.map(n => (n === oldName ? newName : n))
+                                  }))
+                                );
+                                setConsAdvList(prev =>
+                                  prev.map(it => ({
+                                    ...it,
+                                    units: it.units.includes("__ALL__")
+                                      ? it.units
+                                      : it.units.map(n => (n === oldName ? newName : n))
+                                  }))
+                                );
+                              }
+                            }}
+                            className="col-span-7 border rounded px-3 py-2"
+                            placeholder="Ex. Atelier – Découpe"
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            value={unitEffectifs[u] ?? ""}
+                            onChange={(e) => {
+                              const v = e.target.value === "" ? NaN : Number(e.target.value);
+                              setUnitEffectifs(prev => ({ ...prev, [u]: Number.isNaN(v) ? 0 : Math.max(0, v) }));
+                            }}
+                            className="col-span-3 border rounded px-3 py-2"
+                            placeholder="Effectif"
+                            aria-label={`Effectif pour ${u || "cette unité"}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newUnits = [...formData.unites];
+                              const removed = newUnits.splice(i, 1);
+                              setFormData({ ...formData, unites: newUnits.length ? newUnits : [""] });
+                              if (removed[0]) {
+                                setUnitEffectifs(prev => {
+                                  const { [removed[0]]: _, ...rest } = prev;
+                                  return rest;
+                                });
+                                const removedName = removed[0];
+                                // Nettoyer les sélections d'unités supprimées
+                                setHistAdvList(prev =>
+                                  prev.map(it => ({
+                                    ...it,
+                                    units: it.units.includes("__ALL__")
+                                      ? it.units
+                                      : it.units.filter(n => n !== removedName)
+                                  }))
+                                );
+                                setConsAdvList(prev =>
+                                  prev.map(it => ({
+                                    ...it,
+                                    units: it.units.includes("__ALL__")
+                                      ? it.units
+                                      : it.units.filter(n => n !== removedName)
+                                  }))
+                                );
+                              }
+                            }}
+                            className="col-span-2 text-red-600 hover:text-red-800"
+                            title="Supprimer l'unité"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, unites: [...formData.unites, ""] })}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        + Ajouter une unité
+                      </button>
+                      <div className="text-xs text-gray-600">Total effectif : <b>{totalEffectif}</b> salarié(s)</div>
+                    </div>
+                  </div>
+
+                  {/* Incidents/accidents – liés aux unités */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Incidents / accidents</label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Un item = une situation (physique, chimique, RPS, matériel ou organisationnel). Par défaut, l’item s’applique à <b>toutes les unités</b>.
+                    </p>
+                    <div className="space-y-3">
+                      {histAdvList.map((it, i) => (
+                        <div key={i} className="border rounded p-3">
+                          <div className="flex gap-2">
+                            <input
+                              className="flex-1 border rounded px-3 py-2"
+                              placeholder="Ex. coupure à la scie circulaire, irritations respiratoires en fin de journée…"
+                              value={it.text}
+                              onChange={(e) => {
+                                const arr = [...histAdvList]; arr[i] = { ...arr[i], text: e.target.value }; setHistAdvList(arr);
+                                if (histList[i] !== undefined) { const s = [...histList]; s[i] = e.target.value; setHistList(s); }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="text-red-600"
+                              onClick={() => {
+                                const arr = [...histAdvList]; arr.splice(i, 1); setHistAdvList(arr.length ? arr : [{ text: "", units: ["__ALL__"] }]);
+                                const s = [...(histList.length ? histList : [""])]; s.splice(i,1); setHistList(s.length ? s : [""]);
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <div className="mt-2">
+                            <div className="text-xs text-gray-600 mb-1">Unités concernées :</div>
+                            <div className="flex flex-wrap gap-3 text-sm">
+                              <label className="inline-flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={it.units.includes("__ALL__")}
+                                  onChange={(e) => {
+                                    const arr = [...histAdvList];
+                                    arr[i] = { ...arr[i], units: e.target.checked ? ["__ALL__"] : [] };
+                                    setHistAdvList(arr);
+                                  }}
+                                />
+                                Toutes les unités
+                              </label>
+                              {filledUnits.map(u => (
+                                <label key={u} className="inline-flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={it.units.includes("__ALL__") ? true : it.units.includes(u)}
+                                    onChange={(e) => {
+                                      const next = new Set(it.units.includes("__ALL__") ? [] : it.units);
+                                      if (e.target.checked) next.add(u); else next.delete(u);
+                                      const arr = [...histAdvList];
+                                      arr[i] = { ...arr[i], units: Array.from(next) };
+                                      setHistAdvList(arr);
+                                    }}
+                                    disabled={it.units.includes("__ALL__")}
+                                  />
+                                  {u || "—"}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="text-blue-600 hover:text-blue-800"
+                        onClick={() => { setHistAdvList([...histAdvList, { text: "", units: ["__ALL__"] }]); setHistList([...histList, ""]); }}
+                      >
+                        + Ajouter un incident/accident
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Contraintes – liées aux unités */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Contraintes spécifiques</label>
+                    <div className="space-y-3">
+                      {consAdvList.map((it, i) => (
+                        <div key={i} className="border rounded p-3">
+                          <div className="flex gap-2">
+                            <input
+                              className="flex-1 border rounded px-3 py-2"
+                              placeholder="Ex. locaux anciens années 80, manque de main d’œuvre, subventions limitées…"
+                              value={it.text}
+                              onChange={(e) => {
+                                const arr = [...consAdvList]; arr[i] = { ...arr[i], text: e.target.value }; setConsAdvList(arr);
+                                if (consList[i] !== undefined) { const s = [...consList]; s[i] = e.target.value; setConsList(s); }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="text-red-600"
+                              onClick={() => {
+                                const arr = [...consAdvList]; arr.splice(i, 1); setConsAdvList(arr.length ? arr : [{ text: "", units: ["__ALL__"] }]);
+                                const s = [...(consList.length ? consList : [""])]; s.splice(i,1); setConsList(s.length ? s : [""]);
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <div className="mt-2">
+                            <div className="text-xs text-gray-600 mb-1">Unités concernées :</div>
+                            <div className="flex flex-wrap gap-3 text-sm">
+                              <label className="inline-flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={it.units.includes("__ALL__")}
+                                  onChange={(e) => {
+                                    const arr = [...consAdvList];
+                                    arr[i] = { ...arr[i], units: e.target.checked ? ["__ALL__"] : [] };
+                                    setConsAdvList(arr);
+                                  }}
+                                />
+                                Toutes les unités
+                              </label>
+                              {filledUnits.map(u => (
+                                <label key={u} className="inline-flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={it.units.includes("__ALL__") ? true : it.units.includes(u)}
+                                    onChange={(e) => {
+                                      const next = new Set(it.units.includes("__ALL__") ? [] : it.units);
+                                      if (e.target.checked) next.add(u); else next.delete(u);
+                                      const arr = [...consAdvList];
+                                      arr[i] = { ...arr[i], units: Array.from(next) };
+                                      setConsAdvList(arr);
+                                    }}
+                                    disabled={it.units.includes("__ALL__")}
+                                  />
+                                  {u || "—"}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="text-blue-600 hover:text-blue-800"
+                        onClick={() => { setConsAdvList([...consAdvList, { text: "", units: ["__ALL__"] }]); setConsList([...consList, ""]); }}
+                      >
+                        + Ajouter une contrainte
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Sujets communs (optionnel) */}
+                  <div className="border rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-medium">Sujets communs à toute l’entreprise (optionnel)</label>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Cochez les thèmes qui s’appliquent <b>à toutes vos unités</b>. Vous pourrez préciser des différences à l’étape suivante.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {COMMON_FLAGS.map(flag => (
+                        <label key={flag} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={transversalFlags.includes(flag)}
+                            onChange={(e) => {
+                              setTransversalFlags(prev => {
+                                const set = new Set(prev);
+                                if (e.target.checked) set.add(flag); else set.delete(flag);
+                                return Array.from(set);
+                              });
+                            }}
+                          />
+                          {flag}
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Unités de travail</label>
-                  <div className="space-y-2">
-                    {formData.unites.map((u, i) => (
-                      <div key={i} className="flex gap-2">
-                        <input
-                          type="text"
-                          value={u}
-                          onChange={(e) => {
-                            const newUnits = [...formData.unites];
-                            newUnits[i] = e.target.value;
-                            setFormData({ ...formData, unites: newUnits });
-                          }}
-                          className="flex-1 border rounded px-3 py-2"
-                          placeholder="Ex: Atelier, Bureau, Site..."
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newUnits = [...formData.unites];
-                            newUnits.splice(i, 1);
-                            setFormData({ ...formData, unites: newUnits.length ? newUnits : [""] });
-                          }}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, unites: [...formData.unites, ""] })}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      + Ajouter une unité
-                    </button>
+                {/* Colonne récapitulatif */}
+                <aside className="lg:col-span-4">
+                  <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sticky top-4">
+                    <h4 className="font-semibold mb-3">Aperçu</h4>
+                    <ul className="space-y-2 text-sm">
+                      <li className="flex items-center justify-between"><span>Unités</span><b>{filledUnits.length}</b></li>
+                      <li className="flex items-center justify-between"><span>Effectif total</span><b>{totalEffectif}</b></li>
+                      <li className="flex items-center justify-between"><span>Incidents saisis</span><b>{incidentsCount}</b></li>
+                      <li className="flex items-center justify-between"><span>Contraintes saisies</span><b>{contraintesCount}</b></li>
+                      <li className="flex items-center justify-between"><span>Sujets communs cochés</span><b>{transversalFlags.length}</b></li>
+                    </ul>
+                    <p className="mt-3 text-xs text-gray-500">
+                      Ces informations servent à personnaliser vos questions et la génération du DUER.
+                    </p>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Historique des incidents/accidents</label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    Une ligne par élément (physique, psychologique, matériel ou organisationnel).
-                  </p>
-                  <div className="space-y-2">
-                    {histList.map((v, i) => (
-                      <div key={i} className="flex gap-2">
-                        <input
-                          className="flex-1 border rounded px-3 py-2"
-                          placeholder="Ex: chute de chaise en cours d'arts plastiques"
-                          value={v}
-                          onChange={(e) => {
-                            const arr = [...histList];
-                            arr[i] = e.target.value;
-                            setHistList(arr);
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="text-red-600"
-                          onClick={() => {
-                            const arr = [...histList];
-                            arr.splice(i, 1);
-                            setHistList(arr.length ? arr : [""]);
-                          }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      className="text-blue-600 hover:text-blue-800"
-                      onClick={() => setHistList([...histList, ""])}
-                    >
-                      + Ajouter un élément
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Contraintes spécifiques</label>
-                  <div className="space-y-2">
-                    {consList.map((v, i) => (
-                      <div key={i} className="flex gap-2">
-                        <input
-                          className="flex-1 border rounded px-3 py-2"
-                          placeholder="Ex: salles inadaptées, subventions limitées, ..."
-                          value={v}
-                          onChange={(e) => {
-                            const arr = [...consList];
-                            arr[i] = e.target.value;
-                            setConsList(arr);
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="text-red-600"
-                          onClick={() => {
-                            const arr = [...consList];
-                            arr.splice(i, 1);
-                            setConsList(arr.length ? arr : [""]);
-                          }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      className="text-blue-600 hover:text-blue-800"
-                      onClick={() => setConsList([...consList, ""])}
-                    >
-                      + Ajouter une contrainte
-                    </button>
-                  </div>
-                </div>
+                </aside>
               </div>
 
               <div className="mt-6 flex justify-end">
@@ -856,6 +1164,7 @@ const DUERWizard: React.FC = () => {
                 onChange={(id, val) =>
                   setFormData(prev => ({ ...prev, reponses: { ...prev.reponses, [id]: val } }))
                 }
+                unites={filledUnits}
               />
 
               <div className="mt-6 flex justify-between">
@@ -953,7 +1262,7 @@ const DUERWizard: React.FC = () => {
               {/* Synthèse */}
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
                 <h4 className="font-semibold mb-3">Synthèse</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md-grid-cols-4 md:grid-cols-4 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">
                       {generatedDUER.synthese.nb_risques_critiques}

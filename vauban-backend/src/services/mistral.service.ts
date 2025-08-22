@@ -66,87 +66,101 @@ export class MistralService {
   }
 
   async sendPrompt(prompt: string): Promise<string> {
-    console.log('🔍 Mistral Service - API Key:', this.apiKey ? `Présente (${this.apiKey.substring(0, 8)}...)` : 'ABSENTE');
+    console.log(' Mistral Service - API Key:', this.apiKey ? `Présente (${this.apiKey.substring(0, 8)}...)` : 'ABSENTE');
     
     if (!this.apiKey) {
       throw new Error('MISTRAL_API_KEY manquante');
     }
 
-    try {
-      console.log('📤 Envoi requête à Mistral AI...');
-      
-      const messages: MistralMessage[] = [
-        {
-          role: 'system',
-          content: 'Tu es un expert en sécurité au travail et réglementation française. Tu réponds TOUJOURS en JSON valide. Tu connais parfaitement les risques professionnels par secteur d\'activité.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ];
+    // ---- Politique de retry/fallback ----
+    const modelsFallback = [
+      this.model,
+      'mistral-small',
+      'open-mistral-7b',
+    ].filter((v, i, a) => !!v && a.indexOf(v) === i);
 
-      const requestBody: any = {
-        model: this.model,
-        messages,
-        temperature: this.temperature,
-        max_tokens: this.maxTokens,
-      };
+    const mistralTimeout = Number(process.env.MISTRAL_TIMEOUT_MS ?? 60000); // 60s par défaut
+    const baseMaxTokens = this.maxTokens;
+    const baseTemp = this.temperature;
 
-      // ✅ forcer JSON si pas le modèle "tiny"
-      if (!/tiny/i.test(this.model)) {
-        requestBody.response_format = { type: 'json_object' };
-      }
+    let lastErr: any = null;
 
-      console.log(' URL:', this.endpoint);
-      console.log(' Headers:', {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey.substring(0, 8)}...`
-      });
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const delay = attempt === 0 ? 0 : [500, 1200, 2500][Math.min(attempt, 2)];
+      if (delay) await new Promise(r => setTimeout(r, delay));
 
-      const mistralTimeout = Number(process.env.MISTRAL_TIMEOUT_MS ?? 45000);
-      const response = await axios.post(
-        this.endpoint,
-        requestBody,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.apiKey}`,
+      const model = modelsFallback[Math.min(attempt, modelsFallback.length - 1)];
+      const max_tokens = Math.max(800, Math.floor(baseMaxTokens * (attempt === 0 ? 1.0 : attempt === 1 ? 0.75 : 0.6)));
+      const temperature = attempt > 0 ? Math.min(0.8, baseTemp) : baseTemp;
+
+      try {
+        console.log(` Mistral try#${attempt+1} model=${model} max_tokens=${max_tokens}`);
+        
+        const messages: MistralMessage[] = [
+          {
+            role: 'system',
+            content: 'Tu es un expert en sécurité au travail et réglementation française. Tu réponds TOUJOURS en JSON valide. Tu connais parfaitement les risques professionnels par secteur d\'activité.'
           },
-          timeout: mistralTimeout, // timeout configurable
-          timeoutErrorMessage: 'Mistral timeout'
+          { role: 'user', content: prompt }
+        ];
+
+        const requestBody: any = {
+          model,
+          messages,
+          temperature,
+          max_tokens,
+          response_format: { type: 'json_object' }, // forcer JSON
+        };
+
+        const response = await axios.post(
+          this.endpoint,
+          requestBody,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${this.apiKey}`,
+            },
+            timeout: mistralTimeout,
+            timeoutErrorMessage: 'Mistral timeout'
+          }
+        );
+
+        console.log(' Réponse Mistral reçue:', response.status);
+        const mistralResponse = response.data as MistralResponse;
+        
+        if (mistralResponse.choices && mistralResponse.choices.length > 0) {
+          const content = mistralResponse.choices[0].message.content || '';
+          console.log(' Contenu reçu (100 premiers caractères):', content.substring(0, 100));
+          
+          // Extraction et validation JSON
+          const jsonCandidate = extractJsonFromText(content);
+          try { 
+            JSON.parse(jsonCandidate); 
+            return jsonCandidate; 
+          } catch {
+            console.error(' Réponse non-JSON, tentative de nettoyage…');
+            return content; // debug aid
+          }
         }
-      );
-
-      console.log(' Réponse Mistral reçue:', response.status);
-      
-      const mistralResponse = response.data as MistralResponse;
-      
-      if (mistralResponse.choices && mistralResponse.choices.length > 0) {
-        const content = mistralResponse.choices[0].message.content || '';
-        console.log('📄 Contenu reçu (100 premiers caractères):', content.substring(0, 100));
-
-        // Extraction JSON centralisée
-        const jsonCandidate = extractJsonFromText(content);
-
-        // Valider que c'est bien du JSON
-        try {
-          JSON.parse(jsonCandidate);
-          return jsonCandidate;
-        } catch {
-          console.error('⚠️ Réponse non-JSON, tentative de nettoyage...');
-          // Si ce n'est pas du JSON, on retourne quand même pour debug
-          console.log('Réponse brute:', content);
-          return content;
+        throw new Error('Réponse Mistral vide');
+        
+      } catch (error: any) {
+        lastErr = error;
+        const status = error?.response?.status;
+        const code = error?.code || error?.response?.data?.code;
+        console.warn(` Mistral erreur (try#${attempt+1}) status=${status} code=${code} msg=${error?.message}`);
+        
+        // 429 / timeout -> retry
+        if (status === 429 || /timeout/i.test(String(error?.message))) {
+          continue;
         }
+        // autres erreurs: ne pas insister
+        break;
       }
-      
-      throw new Error('Réponse Mistral vide');
-      
-    } catch (error) {
-      console.error('❌ Erreur Mistral API:', error);
-      throw error;
     }
+    
+    console.error(' Erreur Mistral API après retries:', lastErr);
+    throw lastErr;
   }
 
   /**
